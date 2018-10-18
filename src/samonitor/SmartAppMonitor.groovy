@@ -3,6 +3,7 @@ package samonitor
 import org.codehaus.groovy.ast.ClassCodeVisitorSupport
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.MethodNode
+import org.codehaus.groovy.ast.expr.ArgumentListExpression
 import org.codehaus.groovy.ast.expr.ClosureExpression
 import org.codehaus.groovy.ast.expr.ConstantExpression
 import org.codehaus.groovy.ast.expr.MapExpression
@@ -37,6 +38,8 @@ class SmartAppMonitor extends CompilationCustomizer{
     boolean inIfStat
     boolean inHandler
 
+    int preferenceStartLine
+
 
     public SmartAppMonitor()
     {
@@ -55,6 +58,8 @@ class SmartAppMonitor extends CompilationCustomizer{
         skipMethod = true
         inIfStat = false
         inHandler = false
+
+        preferenceStartLine = 0
 
     }
     @Override
@@ -134,9 +139,19 @@ class SmartAppMonitor extends CompilationCustomizer{
 
 
             if(methText.equals("preferences")){
-                String code = "\t//Inserted Code\n"
-                code += "\tsection(\"Select SmartAppMonitor\") {\n" + "\t\tinput \"smartAppMonitor\", \"capability.execute\"\n" + "\t}"
-                insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 4])
+                if(mce.getArguments().toString().contains("page")) {
+                    String code = "\t//Inserted Code\n"
+                    code += "\tpage(name: \"Select SmartApp Monitor Page\") {\n"
+                    code += "\t\tsection(\"Select SmartAppMonitor\") {\n" + "\t\t\tinput \"smartAppMonitor\", \"capability.execute\"\n" + "\t\t}"
+                    code += "\n\t}"
+                    insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 6])
+                }
+                else {
+                    String code = "\t//Inserted Code\n"
+                    code += "\tsection(\"Select SmartAppMonitor\") {\n" + "\t\tinput \"smartAppMonitor\", \"capability.execute\"\n" + "\t}"
+                    insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 4])
+                }
+
             }
 
             if(methText.equals("input") || methText.equals("ifSet")) {
