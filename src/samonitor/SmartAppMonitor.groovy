@@ -23,6 +23,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
     OutFile of
     int numberOfLineAdded
+    List<Map> closureDeviceNames
 
     Set<String> deviceNames
     Set<String> inputDeviceNames
@@ -45,6 +46,8 @@ class SmartAppMonitor extends CompilationCustomizer{
     {
         super(CompilePhase.SEMANTIC_ANALYSIS)
         numberOfLineAdded = 0
+        closureDeviceNames = new ArrayList<Map>()
+
         deviceNames = new HashSet<String>()
         inputDeviceNames = new HashSet<String>()
         outputDeviceNames = new HashSet<String>()
@@ -209,7 +212,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
             }
 
-            if(methText.equals("subscribe")) {
+            if(methText.equals("subscribe") || methText.equals("subscribeToCommand")) {
                 def args = mce.getArguments()
                 def deviceN
                 def handlerN
@@ -252,24 +255,50 @@ class SmartAppMonitor extends CompilationCustomizer{
                 else if(methText.contains("size") || methText.contains("count")) {
 
                 }
+                else if(methText.contains("hasCapability")) {
+
+                }
                 else if(methText.contains("each") || methText.contains("eachWithIndex")) {
+                    closureDeviceNames = new ArrayList<Map>()
                     def recver = mce.getReceiver()
                     mce.getAt("arguments").each { a ->
                         if(a instanceof ClosureExpression) {
-                            a.getParameters().each { a_p ->
-                                if (recver instanceof VariableExpression) {
+                            if(a.getParameters()) {
+                                a.getParameters().each { a_p ->
+                                    if (recver instanceof VariableExpression) {
+                                        VariableExpression recvex = (VariableExpression) recver
+                                        def realDevice
+                                        def closureDevice
+                                        def capa
+                                        for (Map m : deviceNames2) {
+                                            if (recvex.getName().equals(m.get("name"))) {
+                                                realDevice = m.getAt("name")
+                                                closureDevice = a_p.getAt("name")
+                                                capa = m.get("capability")
+                                            }
+                                        }
+                                        closureDeviceNames.add(["realDevice": realDevice, "closureDevice": closureDevice, "capability": capa])
+                                    }
+                                }
+                            }
+                            else {
+                                if(recver instanceof  VariableExpression) {
                                     VariableExpression recvex = (VariableExpression) recver
+                                    def realDevice
+                                    def closureDevice
                                     def capa
                                     for (Map m : deviceNames2) {
                                         if (recvex.getName().equals(m.get("name"))) {
-                                            outputDeviceNames.add(a_p.getAt("name"))
+                                            realDevice = m.getAt("name")
+                                            closureDevice = "it"
                                             capa = m.get("capability")
                                         }
                                     }
-                                    deviceNames2.add(["name": a_p.getAt("name"), "capability": capa])
+                                    closureDeviceNames.add(["realDevice": realDevice, "closureDevice": closureDevice, "capability": capa])
                                 }
                             }
                         }
+
                     }
                 }
                 else {
@@ -283,6 +312,13 @@ class SmartAppMonitor extends CompilationCustomizer{
                                 outputDeviceNames.add(m.get("name"))
                                 String code = "\t//Inserted Code\n"
                                 code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
+                                insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2])
+                            }
+                        }
+                        for(Map m : closureDeviceNames) {
+                            if (recvex.getName().equals(m.get("closureDevice"))) {
+                                String code = "\t//Inserted Code\n"
+                                code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("realDevice") + ".getName()}\", \"action\")"
                                 insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2])
                             }
                         }
@@ -361,6 +397,8 @@ class SmartAppMonitor extends CompilationCustomizer{
 
     void resetVariables() {
         numberOfLineAdded = 0
+        closureDeviceNames = new ArrayList<Map>()
+
         deviceNames = new HashSet<String>()
         inputDeviceNames = new HashSet<String>()
         outputDeviceNames = new HashSet<String>()
