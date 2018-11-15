@@ -33,6 +33,7 @@ class SmartAppMonitor extends CompilationCustomizer{
     List<Map> insertCodeMap
     Set<Map> deviceNames2
     Set<Map> device_handlerPair
+    Set<Map> method_returnPair
 
 
     boolean skipMethod
@@ -57,6 +58,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         deviceNames2 = new HashSet<Map>()
 
         device_handlerPair = new HashSet<Map>()
+        method_returnPair = new HashSet<Map>()
 
         skipMethod = true
         inIfStat = false
@@ -67,6 +69,9 @@ class SmartAppMonitor extends CompilationCustomizer{
     }
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode) {
+        MethodDecVisitor mdv = new MethodDecVisitor()
+        classNode.visitContents(mdv)
+
         MyCodeVisitor mcv = new MyCodeVisitor()
         classNode.visitContents(mcv)
         insertCodeMap.sort({m1, m2 -> m1.lineNumber <=> m2.lineNumber})
@@ -74,6 +79,96 @@ class SmartAppMonitor extends CompilationCustomizer{
             codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"))
         }
         println of.getText()
+    }
+    class MethodDecVisitor extends ClassCodeVisitorSupport {
+        @Override
+        void visitMethod(MethodNode meth)
+        {
+            def methName = meth.getName()
+            if(!methName.equals("main") && !methName.equals("run") && !methName.equals("installed") && !methName.equals("updated") && !methName.equals("initialize")) {
+
+                def f = of.getFile()
+                def lines = f.readLines()
+                def lastLines = lines.get(meth.getLastLineNumber()-1)
+                if(!deviceNames2.isEmpty()) {
+                    for (Map m : deviceNames2) {
+                        if (lastLines != null) {
+                            if (lastLines.contains(m.get("name"))) {
+                                method_returnPair.add(["method": methName, "return": m.get("name")])
+                                method_returnPair.add(["method": methName, "return": methName+"()"])
+                            }
+                        }
+                    }
+                }
+
+            }
+            else {
+
+            }
+            super.visitMethod(meth)
+        }
+        @Override
+        void visitMethodCallExpression(MethodCallExpression mce) {
+            def methText = mce.getMethodAsString()
+
+            if (methText.equals("input") || methText.equals("ifSet")) {
+                def args = mce.getArguments()
+                if (args.getAt("text").toString().contains("capability") || args.getAt("text").toString().contains("device") || args.getAt("text").toString().contains("attribute")) {
+                    Map ma2 = [:]
+                    args.each { arg ->
+                        if (arg instanceof ConstantExpression) {
+                            String text = arg.getText()
+                            if (text.contains("capability") || text.contains("device") || text.contains("attribute")) {
+                                if (text.contains("capability")) {
+                                    ma2 += ["capability": arg.getText().substring(11)]
+                                } else if (text.contains("device")) {
+                                    ma2 += ["capability": arg.getText().substring(7)]
+                                } else if (text.contains("attribute")) {
+                                    ma2 += ["capability": arg.getText().substring(10)]
+                                }
+                            } else {
+                                ma2 += ["name": arg.getText()]
+                            }
+                        }
+
+                        if (arg instanceof MapExpression) {
+                            //println arg
+                            Map ma = [:]
+                            arg.getMapEntryExpressions().each { m ->
+                                if (m.getKeyExpression().getText().equals("name")) {
+                                    deviceNames.add(m.getValueExpression().getText())
+                                    ma = ["name": m.getValueExpression().getText()]
+                                }
+                                if (m.getKeyExpression().getText().equals("type")) {
+                                    def text = m.getValueExpression().getText()
+                                    if (text.contains("capability.") || text.contains("device") || text.contains("attribute")) {
+                                        if (text.contains("capability")) {
+                                            ma += ["capability": text.substring(11)]
+                                        } else if (text.contains("device")) {
+                                            ma += ["capability": text.substring(7)]
+                                        } else if (text.contains("attribute")) {
+                                            ma += ["capability": text.substring(10)]
+                                        }
+                                        if(ma != null && !ma.isEmpty())
+                                            deviceNames2.add(ma)
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+                    if(ma2 != null && !ma2.isEmpty())
+                        deviceNames2.add(ma2)
+                }
+            }
+            super.visitMethodCallExpression(mce)
+        }
+
+
+        @Override
+        protected SourceUnit getSourceUnit() {
+            return null;
+        }
     }
 
     class MyCodeVisitor extends ClassCodeVisitorSupport{
@@ -200,14 +295,14 @@ class SmartAppMonitor extends CompilationCustomizer{
                                         else if(text.contains("attribute") ){
                                             ma += ["capability": text.substring(10)]
                                         }
-                                        deviceNames2.add(ma)
+                                       // deviceNames2.add(ma)
                                     }
                                 }
 
                             }
                         }
                     }
-                    deviceNames2.add(ma2)
+                   // deviceNames2.add(ma2)
                 }
 
             }
@@ -241,30 +336,40 @@ class SmartAppMonitor extends CompilationCustomizer{
             if(!skipMethod) {
                 // if action -> code insert
                 // if send message -> code insert
+                if(methText != null ) {
+                    if (methText.toLowerCase().contains("state") || methText.toLowerCase().contains("value") || methText.toLowerCase().contains("event")) {
 
-                if(methText.toLowerCase().contains("state") || methText.toLowerCase().contains("value") || methText.toLowerCase().contains("event"))
-                {
+                    } else if (methText.contains("mappings")) {
 
-                }
-                else if(methText.contains("mappings")) {
+                    } else if (methText.contains("find") || methText.contains("collect")) {
 
-                }
-                else if(methText.contains("find") || methText.contains("collect")) {
+                    } else if (methText.contains("size") || methText.contains("count")) {
 
-                }
-                else if(methText.contains("size") || methText.contains("count")) {
+                    } else if (methText.contains("hasCapability")) {
 
-                }
-                else if(methText.contains("hasCapability")) {
-
-                }
-                else if(methText.contains("each") || methText.contains("eachWithIndex")) {
-                    closureDeviceNames = new ArrayList<Map>()
-                    def recver = mce.getReceiver()
-                    mce.getAt("arguments").each { a ->
-                        if(a instanceof ClosureExpression) {
-                            if(a.getParameters()) {
-                                a.getParameters().each { a_p ->
+                    } else if (methText.contains("each") || methText.contains("eachWithIndex")) {
+                        closureDeviceNames = new ArrayList<Map>()
+                        def recver = mce.getReceiver()
+                        mce.getAt("arguments").each { a ->
+                            if (a instanceof ClosureExpression) {
+                                if (a.getParameters()) {
+                                    a.getParameters().each { a_p ->
+                                        if (recver instanceof VariableExpression) {
+                                            VariableExpression recvex = (VariableExpression) recver
+                                            def realDevice
+                                            def closureDevice
+                                            def capa
+                                            for (Map m : deviceNames2) {
+                                                if (recvex.getName().equals(m.get("name"))) {
+                                                    realDevice = m.getAt("name")
+                                                    closureDevice = a_p.getAt("name")
+                                                    capa = m.get("capability")
+                                                }
+                                            }
+                                            closureDeviceNames.add(["realDevice": realDevice, "closureDevice": closureDevice, "capability": capa])
+                                        }
+                                    }
+                                } else {
                                     if (recver instanceof VariableExpression) {
                                         VariableExpression recvex = (VariableExpression) recver
                                         def realDevice
@@ -273,7 +378,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                                         for (Map m : deviceNames2) {
                                             if (recvex.getName().equals(m.get("name"))) {
                                                 realDevice = m.getAt("name")
-                                                closureDevice = a_p.getAt("name")
+                                                closureDevice = "it"
                                                 capa = m.get("capability")
                                             }
                                         }
@@ -281,58 +386,55 @@ class SmartAppMonitor extends CompilationCustomizer{
                                     }
                                 }
                             }
-                            else {
-                                if(recver instanceof  VariableExpression) {
-                                    VariableExpression recvex = (VariableExpression) recver
-                                    def realDevice
-                                    def closureDevice
-                                    def capa
-                                    for (Map m : deviceNames2) {
-                                        if (recvex.getName().equals(m.get("name"))) {
-                                            realDevice = m.getAt("name")
-                                            closureDevice = "it"
-                                            capa = m.get("capability")
-                                        }
-                                    }
-                                    closureDeviceNames.add(["realDevice": realDevice, "closureDevice": closureDevice, "capability": capa])
+
+                        }
+                    } else {
+                        def recver = mce.getReceiver()
+                        if (recver.getClass().toString().contains("MethodCallExpression")) {
+                            def deviceN
+                            for (Map m : method_returnPair) {
+                                if (recver.getAt("methodAsString").equals(m.get("method"))) {
+                                    deviceN = m.get("return")
+                                }
+                            }
+                            for (Map m : deviceNames2) {
+                                if (deviceN.toString().equals(m.get("name"))) {
+                                    String code = "\t//Inserted Code\n"
+                                    code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
+                                    insertCodeMap.add(["code": code, "lineNumber": recver.getLineNumber() + 1, "addedLine": 2])
                                 }
                             }
                         }
+                        if (recver instanceof VariableExpression) {
+                            VariableExpression recvex = (VariableExpression) recver
 
-                    }
-                }
-                else {
-                    def recver = mce.getReceiver()
-
-                    if (recver instanceof VariableExpression) {
-                        VariableExpression recvex = (VariableExpression) recver
-
-                        for (Map m : deviceNames2) {
-                            if (recvex.getName().equals(m.get("name"))) {
-                                outputDeviceNames.add(m.get("name"))
-                                String code = "\t//Inserted Code\n"
-                                code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
-                                insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2])
+                            for (Map m : deviceNames2) {
+                                if (recvex.getName().equals(m.get("name"))) {
+                                    outputDeviceNames.add(m.get("name"))
+                                    String code = "\t//Inserted Code\n"
+                                    code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
+                                    insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2])
+                                }
+                            }
+                            for (Map m : closureDeviceNames) {
+                                if (recvex.getName().equals(m.get("closureDevice"))) {
+                                    String code = "\t//Inserted Code\n"
+                                    code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("realDevice") + ".getName()}\", \"action\")"
+                                    insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2])
+                                }
                             }
                         }
-                        for(Map m : closureDeviceNames) {
-                            if (recvex.getName().equals(m.get("closureDevice"))) {
-                                String code = "\t//Inserted Code\n"
-                                code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("realDevice") + ".getName()}\", \"action\")"
-                                insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2])
-                            }
-                        }
-                    }
-                    if (methText.equals("sendSms") || methText.equals("sendPush") || methText.equals("sendNotificationToContacts") || methText.equals("sendNotification")) {
-                        String code = "\t//Inserted Code\n"
-                        code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"send\", \"this\", \"action\")"
-                        insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2])
+                        if (methText.equals("sendSms") || methText.equals("sendPush") || methText.equals("sendNotificationToContacts") || methText.equals("sendNotification")) {
+                            String code = "\t//Inserted Code\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"send\", \"this\", \"action\")"
+                            insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2])
 
-                    }
-                    if(methText.equals("setLocationMode")) {
-                        String code = "\t//Inserted Code\n"
-                        code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"setLocationMode\", \"this\", \"action\")"
-                        insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2])
+                        }
+                        if (methText.equals("setLocationMode")) {
+                            String code = "\t//Inserted Code\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"setLocationMode\", \"this\", \"action\")"
+                            insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2])
+                        }
                     }
                 }
             }
@@ -353,8 +455,10 @@ class SmartAppMonitor extends CompilationCustomizer{
             }
             if(!elseStat.getAt("class").toString().contains("EmptyStatement")) {
                 if(!elseStat.getText().contains("{")) {
-                    if(elseStat.getAt("ifBlock") != null) {
+                    if(elseStat.hasProperty("ifBlock")) {
+                        if (elseStat.getAt("ifBlock") != null) {
 
+                        }
                     }
                     else {
                         if (elseStat.getColumnNumber() != -1) {
@@ -408,6 +512,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         deviceNames2 = new HashSet<Map>()
 
         device_handlerPair = new HashSet<Map>()
+        method_returnPair = new HashSet<Map>()
 
         skipMethod = true
         inIfStat = false
