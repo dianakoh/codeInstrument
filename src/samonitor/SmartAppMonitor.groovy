@@ -95,7 +95,6 @@ class SmartAppMonitor extends CompilationCustomizer{
                         if (lastLines != null) {
                             if (lastLines.contains(m.get("name"))) {
                                 method_returnPair.add(["method": methName, "return": m.get("name")])
-                                method_returnPair.add(["method": methName, "return": methName+"()"])
                             }
                         }
                     }
