@@ -6,6 +6,7 @@ import org.codehaus.groovy.ast.MethodNode
 import org.codehaus.groovy.ast.expr.ArgumentListExpression
 import org.codehaus.groovy.ast.expr.ClosureExpression
 import org.codehaus.groovy.ast.expr.ConstantExpression
+import org.codehaus.groovy.ast.expr.GStringExpression
 import org.codehaus.groovy.ast.expr.MapExpression
 import org.codehaus.groovy.ast.expr.MethodCallExpression
 import org.codehaus.groovy.ast.expr.VariableExpression
@@ -78,7 +79,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         for(Map m : insertCodeMap) {
             codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"), m.get("exception"))
         }
-        //println of.getText()
+        println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
         @Override
@@ -213,9 +214,17 @@ class SmartAppMonitor extends CompilationCustomizer{
 					}
                 }
                 if(inHandler == false) {
-					String code = "\t//Inserted Code\n"
-					code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
-					insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                    if(meth.getLineNumber() == meth.getLastLineNumber()) {
+                        //println of.getFile().readLines().get(meth.getLineNumber() + numberOfLineAdded)
+                        String code = "\t//Inserted Code\n"
+                        code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
+                        insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2])
+                    }
+                    else {
+                        String code = "\t//Inserted Code\n"
+                        code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
+                        insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                    }
                 }
             }
             else if(methName.equals("run")) {
@@ -449,7 +458,9 @@ class SmartAppMonitor extends CompilationCustomizer{
             Statement elseStat = ifElse.getElseBlock()
             if(!ifStat.getText().contains("{")) {
                 if(ifElse.getLineNumber() == ifStat.getLineNumber()) {
-                    insertCodeMap.add(["code": ifStat.getText(), "lineNumber": ifStat.getLineNumber(), "addedLine": 1, "exception": 1])
+                    def code = of.getFile().readLines().get(ifStat.getLineNumber()+numberOfLineAdded)
+                    def code2 = code.substring(ifStat.getColumnNumber()-1, ifStat.getLastColumnNumber()-1)
+                    insertCodeMap.add(["code": code2, "lineNumber": ifStat.getLineNumber(), "addedLine": 1, "exception": 1])
                 }
                 else {
                     inIfStat = true
@@ -485,38 +496,70 @@ class SmartAppMonitor extends CompilationCustomizer{
         if(lineNum >= 0) {
             def f = of.getFile()
             def lines = f.readLines()
-            if(exceptionBool == 1) {
-                //println "{" + code + "}"
-                //lines = lines.drop(lineNum+numberOfLineAdded)
-               // f.text = lines
-                //print lineNum + " "
-                //println lines.get(lineNum+numberOfLineAdded)
-                //println lines.set(lineNum+numberOfLineAdded,  "*********")
-                File fileToBeModified = of.getFile()
-                String oldContent = ""
-                BufferedReader reader = new BufferedReader(new FileReader(fileToBeModified))
-                String line = reader.readLine()
-                int lineNum2 = 1;
-                while(line != null) {
-                    if(lineNum+numberOfLineAdded+1 == lineNum2) {
-                       // println line.replace(code, "{" + code + "}")
-                        println  code
-                        println line
-                        oldContent = oldContent +  line + System.lineSeparator()
-                    }
-                    else
-                        oldContent = oldContent + line + System.lineSeparator()
-                    line = reader.readLine()
-                    lineNum2++
-                }
-                String newContent = oldContent
-                FileWriter writer = new FileWriter(fileToBeModified)
-                writer.write(newContent)
+            int numberOfLineAdded2 = 0
+            if(exceptionBool == 1 || exceptionBool == 2) {
+                if(exceptionBool == 1) {
+                    File fileToBeModified = of.getFile()
+                    String oldContent = ""
+                    BufferedReader reader = new BufferedReader(new FileReader(fileToBeModified))
+                    String line = reader.readLine()
+                    int lineNum2 = 1;
+                    while (line != null) {
+                        if (lineNum + numberOfLineAdded + 1 == lineNum2) {
+                            def temp_line = ""
+                            if (line.substring(line.length() - code.length() - 1)[0] != ')') {
+                                def temp_line1 = "{\n" + line.substring(line.length() - code.length() - 1) + "\n}"
+                                def temp_line2 = line.substring(0, line.length() - code.length() - 1)
+                                temp_line = temp_line2 + temp_line1
+                            }
 
-                reader.close()
-                writer.close()
+                            oldContent = oldContent + temp_line + System.lineSeparator()
+                            numberOfLineAdded2 += 2
+                        } else {
+                            oldContent = oldContent + line + System.lineSeparator()
+                        }
+                        line = reader.readLine()
+                        lineNum2++
+                    }
+                    String newContent = oldContent
+                    FileWriter writer = new FileWriter(fileToBeModified)
+                    writer.write(newContent)
+
+                    reader.close()
+                    writer.close()
+                    numberOfLineAdded += numberOfLineAdded2
+                }
+                else if(exceptionBool == 2) {
+                    File fileToBeModified = of.getFile()
+                    String oldContent = ""
+                    BufferedReader reader = new BufferedReader(new FileReader(fileToBeModified))
+                    String line = reader.readLine()
+                    int lineNum2 = 1;
+                    while (line != null) {
+                        if (lineNum + numberOfLineAdded + 1 == lineNum2) {
+                            def ind = line.indexOf('{')
+                            def temp_line1 = line.substring(0, ind+1)
+                            def temp_line2 = line.substring(ind+1, line.length()-1)
+                            def temp_line = temp_line1 + "\n" + code + "\n" + temp_line2 + "\n}"
+                            oldContent = oldContent + temp_line + System.lineSeparator()
+                            numberOfLineAdded2 += addLine
+                            numberOfLineAdded2 += 2
+                        } else {
+                            oldContent = oldContent + line + System.lineSeparator()
+                        }
+                        line = reader.readLine()
+                        lineNum2++
+                    }
+                    String newContent = oldContent
+                    FileWriter writer = new FileWriter(fileToBeModified)
+                    writer.write(newContent)
+
+                    reader.close()
+                    writer.close()
+                    numberOfLineAdded += numberOfLineAdded2
+                }
             }
-            else {
+            else if(exceptionBool == 0) {
                 lines = lines.plus(lineNum + numberOfLineAdded, code)
                 f.text = lines.join('\n')
                 numberOfLineAdded += addLine
@@ -554,5 +597,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         skipMethod = true
         inIfStat = false
         inHandler = false
+
+        preferenceStartLine = 0
     }
 }
