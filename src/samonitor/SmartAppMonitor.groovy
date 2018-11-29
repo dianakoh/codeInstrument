@@ -76,9 +76,9 @@ class SmartAppMonitor extends CompilationCustomizer{
         classNode.visitContents(mcv)
         insertCodeMap.sort({m1, m2 -> m1.lineNumber <=> m2.lineNumber})
         for(Map m : insertCodeMap) {
-            codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"))
+            codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"), m.get("exception"))
         }
-        println of.getText()
+        //println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
         @Override
@@ -201,11 +201,11 @@ class SmartAppMonitor extends CompilationCustomizer{
                         else {
                             code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"event\", \"\${"+ param + ".getDevice()}\", \"event\")"
                         }
-						insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2])
+						insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
 						
 						code = "\t//Inserted Code\n"
 						code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\")"
-						insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2])
+						insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
 						break
 					}
 					else {
@@ -215,7 +215,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 if(inHandler == false) {
 					String code = "\t//Inserted Code\n"
 					code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
-					insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2])
+					insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
                 }
             }
             else if(methName.equals("run")) {
@@ -225,7 +225,7 @@ class SmartAppMonitor extends CompilationCustomizer{
             else if(methName.equals("installed")) {
                 String code = "\t//Inserted Code\n"
                 code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
-                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2])
+                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
             }
             super.visitMethod(meth)
         }
@@ -241,12 +241,12 @@ class SmartAppMonitor extends CompilationCustomizer{
                     code += "\tpage(name: \"Select SmartApp Monitor Page\") {\n"
                     code += "\t\tsection(\"Select SmartAppMonitor\") {\n" + "\t\t\tinput \"smartAppMonitor\", \"capability.execute\"\n" + "\t\t}"
                     code += "\n\t}"
-                    insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 6])
+                    insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 6, "exception": 0])
                 }
                 else {
                     String code = "\t//Inserted Code\n"
                     code += "\tsection(\"Select SmartAppMonitor\") {\n" + "\t\tinput \"smartAppMonitor\", \"capability.execute\"\n" + "\t}"
-                    insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 4])
+                    insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 4, "exception": 0])
                 }
 
             }
@@ -400,7 +400,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                                 if (deviceN.toString().equals(m.get("name"))) {
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
-                                    insertCodeMap.add(["code": code, "lineNumber": recver.getLineNumber() + 1, "addedLine": 2])
+                                    insertCodeMap.add(["code": code, "lineNumber": recver.getLineNumber() + 1, "addedLine": 2, "exception" :0])
                                 }
                             }
                         }
@@ -412,27 +412,27 @@ class SmartAppMonitor extends CompilationCustomizer{
                                     outputDeviceNames.add(m.get("name"))
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
-                                    insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2])
+                                    insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2, "exception": 0])
                                 }
                             }
                             for (Map m : closureDeviceNames) {
                                 if (recvex.getName().equals(m.get("closureDevice"))) {
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("realDevice") + ".getName()}\", \"action\")"
-                                    insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2])
+                                    insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2, "exception": 0])
                                 }
                             }
                         }
                         if (methText.equals("sendSms") || methText.equals("sendPush") || methText.equals("sendNotificationToContacts") || methText.equals("sendNotification")) {
                             String code = "\t//Inserted Code\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"send\", \"this\", \"action\")"
-                            insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2])
+                            insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
 
                         }
                         if (methText.equals("setLocationMode")) {
                             String code = "\t//Inserted Code\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"setLocationMode\", \"this\", \"action\")"
-                            insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2])
+                            insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
                         }
                     }
                 }
@@ -448,9 +448,14 @@ class SmartAppMonitor extends CompilationCustomizer{
             Statement ifStat = ifElse.getIfBlock()
             Statement elseStat = ifElse.getElseBlock()
             if(!ifStat.getText().contains("{")) {
-                inIfStat = true
-                insertCodeMap.add(["code": "\t{", "lineNumber": ifStat.getLineNumber(), "addedLine": 1])
-                insertCodeMap.add(["code": "\t}", "lineNumber": ifStat.getLineNumber()+1, "addedLine": 1])
+                if(ifElse.getLineNumber() == ifStat.getLineNumber()) {
+                    insertCodeMap.add(["code": ifStat.getText(), "lineNumber": ifStat.getLineNumber(), "addedLine": 1, "exception": 1])
+                }
+                else {
+                    inIfStat = true
+                    insertCodeMap.add(["code": "\t{", "lineNumber": ifStat.getLineNumber(), "addedLine": 1, "exception": 0])
+                    insertCodeMap.add(["code": "\t}", "lineNumber": ifStat.getLineNumber() + 1, "addedLine": 1, "exception": 0])
+                }
             }
             if(!elseStat.getAt("class").toString().contains("EmptyStatement")) {
                 if(!elseStat.getText().contains("{")) {
@@ -461,8 +466,8 @@ class SmartAppMonitor extends CompilationCustomizer{
                     }
                     else {
                         if (elseStat.getColumnNumber() != -1) {
-                            insertCodeMap.add(["code": "\t{", "lineNumber": elseStat.getLineNumber(), "addedLine": 1])
-                            insertCodeMap.add(["code": "\t}", "lineNumber": elseStat.getLineNumber() + 1, "addedLine": 1])
+                            insertCodeMap.add(["code": "\t{", "lineNumber": elseStat.getLineNumber(), "addedLine": 1, "exception": 0])
+                            insertCodeMap.add(["code": "\t}", "lineNumber": elseStat.getLineNumber() + 1, "addedLine": 1, "exception": 0])
                         }
                     }
                 }
@@ -476,13 +481,46 @@ class SmartAppMonitor extends CompilationCustomizer{
         }
     }
 
-    private void codeInsert(String code, int lineNum, int addLine) {
+    private void codeInsert(String code, int lineNum, int addLine, int exceptionBool) {
         if(lineNum >= 0) {
             def f = of.getFile()
             def lines = f.readLines()
-            lines = lines.plus(lineNum + numberOfLineAdded, code)
-            f.text = lines.join('\n')
-            numberOfLineAdded += addLine
+            if(exceptionBool == 1) {
+                //println "{" + code + "}"
+                //lines = lines.drop(lineNum+numberOfLineAdded)
+               // f.text = lines
+                //print lineNum + " "
+                //println lines.get(lineNum+numberOfLineAdded)
+                //println lines.set(lineNum+numberOfLineAdded,  "*********")
+                File fileToBeModified = of.getFile()
+                String oldContent = ""
+                BufferedReader reader = new BufferedReader(new FileReader(fileToBeModified))
+                String line = reader.readLine()
+                int lineNum2 = 1;
+                while(line != null) {
+                    if(lineNum+numberOfLineAdded+1 == lineNum2) {
+                       // println line.replace(code, "{" + code + "}")
+                        println  code
+                        println line
+                        oldContent = oldContent +  line + System.lineSeparator()
+                    }
+                    else
+                        oldContent = oldContent + line + System.lineSeparator()
+                    line = reader.readLine()
+                    lineNum2++
+                }
+                String newContent = oldContent
+                FileWriter writer = new FileWriter(fileToBeModified)
+                writer.write(newContent)
+
+                reader.close()
+                writer.close()
+            }
+            else {
+                lines = lines.plus(lineNum + numberOfLineAdded, code)
+                f.text = lines.join('\n')
+                numberOfLineAdded += addLine
+            }
         }
     }
     def summarize()
