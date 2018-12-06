@@ -14,9 +14,11 @@ class Main {
         cc.addCompilationCustomizers(sam)
         GroovyShell gshell = new GroovyShell(cc)
 
+        sam.setActionSet()
         new File(sourceCodeDir).eachFile { f ->
             try {
                 sam.createOutputFile("${f.getName()}", f.text)
+               // println(f.getName())
                 sam.resetVariables()
                 gshell.evaluate(f)
             } catch (MissingMethodException mme) {

@@ -19,6 +19,9 @@ import org.codehaus.groovy.control.SourceUnit
 import org.codehaus.groovy.control.customizers.CompilationCustomizer
 import org.codehaus.groovy.transform.GroovyASTTransformation
 
+import java.sql.*;
+import groovy.sql.Sql
+
 @GroovyASTTransformation(phase = CompilePhase.SEMANTIC_ANALYSIS)
 class SmartAppMonitor extends CompilationCustomizer{
 
@@ -35,6 +38,8 @@ class SmartAppMonitor extends CompilationCustomizer{
     Set<Map> deviceNames2
     Set<Map> device_handlerPair
     Set<Map> method_returnPair
+
+    Set<String> actionSet
 
 
     boolean skipMethod
@@ -61,6 +66,8 @@ class SmartAppMonitor extends CompilationCustomizer{
         device_handlerPair = new HashSet<Map>()
         method_returnPair = new HashSet<Map>()
 
+        actionSet = new HashSet<String>()
+
         skipMethod = true
         inIfStat = false
         inHandler = false
@@ -79,7 +86,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         for(Map m : insertCodeMap) {
             codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"), m.get("exception"))
         }
-        println of.getText()
+        //println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
         @Override
@@ -93,7 +100,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 def lastLines = lines.get(meth.getLastLineNumber()-1)
                 if(!deviceNames2.isEmpty()) {
                     for (Map m : deviceNames2) {
-                        if (lastLines != null) {
+                        if (lastLines != null && m.containsKey("name")) {
                             if (lastLines.contains(m.get("name"))) {
                                 method_returnPair.add(["method": methName, "return": m.get("name")])
                             }
@@ -398,6 +405,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                         }
                     } else {
                         def recver = mce.getReceiver()
+                        boolean thereisaction = false
                         if (recver.getClass().toString().contains("MethodCallExpression")) {
                             def deviceN
                             for (Map m : method_returnPair) {
@@ -407,6 +415,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                             }
                             for (Map m : deviceNames2) {
                                 if (deviceN.toString().equals(m.get("name"))) {
+                                    thereisaction = true;
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
                                     insertCodeMap.add(["code": code, "lineNumber": recver.getLineNumber() + 1, "addedLine": 2, "exception" :0])
@@ -418,6 +427,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
                             for (Map m : deviceNames2) {
                                 if (recvex.getName().equals(m.get("name"))) {
+                                    thereisaction = true;
                                     outputDeviceNames.add(m.get("name"))
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
@@ -426,22 +436,36 @@ class SmartAppMonitor extends CompilationCustomizer{
                             }
                             for (Map m : closureDeviceNames) {
                                 if (recvex.getName().equals(m.get("closureDevice"))) {
+                                    thereisaction = true
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("realDevice") + ".getName()}\", \"action\")"
                                     insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2, "exception": 0])
                                 }
                             }
+
                         }
                         if (methText.equals("sendSms") || methText.equals("sendPush") || methText.equals("sendNotificationToContacts") || methText.equals("sendNotification")) {
+                            thereisaction = true
                             String code = "\t//Inserted Code\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"send\", \"this\", \"action\")"
                             insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
 
                         }
                         if (methText.equals("setLocationMode")) {
+                            thereisaction = true
                             String code = "\t//Inserted Code\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"setLocationMode\", \"this\", \"action\")"
                             insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
+                        }
+
+                        if(thereisaction == false) {
+                            for(String s : actionSet) {
+                                if(s.equals(methText)) {
+                                    String code = "\t//Inserted Code\n"
+                                    code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"Capability\", \"Devices\", \"action\")"
+                                    insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
+                                }
+                            }
                         }
                     }
                 }
@@ -577,6 +601,33 @@ class SmartAppMonitor extends CompilationCustomizer{
         of.removeFileText()
         of.append(fileText)
 
+    }
+
+    void setActionSet() {
+       // println("start")
+        def sql = Sql.newInstance('jdbc:mysql://203.252.195.182:3306/api_smartAppMonitor_test',
+                'root', '1234', 'com.mysql.jdbc.Driver')
+
+        sql.eachRow('select * from Capabilities') {
+            tp ->
+                //println([tp.capability, tp.action])
+                //if(tp.action != null)
+                 //   println tp.action
+                if(tp.action != null) {
+                    String temp = tp.action
+                    def actionSt = temp.split()
+                    for(String s : actionSt) {
+                        actionSet.add(s)
+                    }
+                }
+
+        }
+
+        sql.close()
+
+        /*for(String s : actionSet) {
+            println s
+        }*/
     }
 
     void resetVariables() {
