@@ -86,7 +86,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         for(Map m : insertCodeMap) {
             codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"), m.get("exception"))
         }
-        //println of.getText()
+        println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
         @Override
