@@ -89,6 +89,8 @@ class SmartAppMonitor extends CompilationCustomizer{
         println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
+
+        // store method information that return devices in method_returnPair
         @Override
         void visitMethod(MethodNode meth)
         {
@@ -114,6 +116,8 @@ class SmartAppMonitor extends CompilationCustomizer{
             }
             super.visitMethod(meth)
         }
+
+        // input part - store devices information in deviceNames2
         @Override
         void visitMethodCallExpression(MethodCallExpression mce) {
             def methText = mce.getMethodAsString()
@@ -186,10 +190,13 @@ class SmartAppMonitor extends CompilationCustomizer{
             def methName = meth.getName()
             def param
             def deviceN
-            
+
+            // get the method's parameters
             meth.getParameters().each { p ->
 				param = p.getAt("name")
 			}
+
+            // if the method is event handler method, get the device information
 			for(Map m : device_handlerPair) {
 				if(m.get("handler").equals(methName)) {
 					deviceN = m.get("device")
@@ -198,34 +205,35 @@ class SmartAppMonitor extends CompilationCustomizer{
 			
             if(!methName.equals("main") && !methName.equals("run") && !methName.equals("installed") && !methName.equals("updated") && !methName.equals("initialize")) {
                 skipMethod = false
+                inHandler = false
                 for(String s : handlerMethodNames) {
-					if(methName.equals(s)) {
+					if(methName.equals(s)) { //if the method is handler method
 						inHandler = true
-						
-						String code = "\t//Inserted Code\n"
-                        if(deviceN.toString().equals("app") || deviceN.toString().equals("location")) {
-                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"event\", \""+ deviceN + "\", \"event\")"
+                        if(meth.getLineNumber() == meth.getLastLineNumber()) {
+                            break
                         }
                         else {
-                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"event\", \"\${"+ param + ".getDevice()}\", \"event\")"
+                            String code = "\t//Inserted Code\n"
+                            if (deviceN.toString().equals("app") || deviceN.toString().equals("location")) {
+                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"event\", \"" + deviceN + "\", \"event\")"
+                            } else {
+                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"event\", \"\${" + param + ".getDevice()}\", \"event\")"
+                            }
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+
+                            code = "\t//Inserted Code\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\")"
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+
+                            break
                         }
-						insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
-						
-						code = "\t//Inserted Code\n"
-						code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\")"
-						insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
-						break
-					}
-					else {
-						inHandler = false
 					}
                 }
-                if(inHandler == false) {
-                    if(meth.getLineNumber() == meth.getLastLineNumber()) {
-                        //println of.getFile().readLines().get(meth.getLineNumber() + numberOfLineAdded)
+                if(inHandler == false) { //if the method is not handler method
+                    if(meth.getLineNumber() == meth.getLastLineNumber()) { // if the method has only one line
                         String code = "\t//Inserted Code\n"
                         code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
-                        insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2])
+                        insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
                     }
                     else {
                         String code = "\t//Inserted Code\n"
@@ -234,10 +242,13 @@ class SmartAppMonitor extends CompilationCustomizer{
                     }
                 }
             }
+
             else if(methName.equals("run")) {
                 numberOfLineAdded = 0
                 skipMethod = true
             }
+
+            // when the smartapp - install
             else if(methName.equals("installed")) {
                 String code = "\t//Inserted Code\n"
                 code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
@@ -250,16 +261,15 @@ class SmartAppMonitor extends CompilationCustomizer{
         void visitMethodCallExpression(MethodCallExpression mce) {
             def methText = mce.getMethodAsString()
 
-
             if(methText.equals("preferences")){
-                if(mce.getArguments().toString().contains("page")) {
+                if(mce.getArguments().toString().contains("page")) { //if the smartapp's preference has page structures
                     String code = "\t//Inserted Code\n"
                     code += "\tpage(name: \"Select SmartApp Monitor Page\") {\n"
                     code += "\t\tsection(\"Select SmartAppMonitor\") {\n" + "\t\t\tinput \"smartAppMonitor\", \"capability.execute\"\n" + "\t\t}"
                     code += "\n\t}"
                     insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 6, "exception": 0])
                 }
-                else {
+                else { //if the smartapp's preference doesn't have any page structure
                     String code = "\t//Inserted Code\n"
                     code += "\tsection(\"Select SmartAppMonitor\") {\n" + "\t\tinput \"smartAppMonitor\", \"capability.execute\"\n" + "\t}"
                     insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 4, "exception": 0])
@@ -267,7 +277,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
             }
 
-            if(methText.equals("input") || methText.equals("ifSet")) {
+           /* if(methText.equals("input") || methText.equals("ifSet")) {
                 def args = mce.getArguments()
                 if(args.getAt("text").toString().contains("capability") || args.getAt("text").toString().contains("device") || args.getAt("text").toString().contains("attribute")) {
                     Map ma2 = [:]
@@ -320,8 +330,9 @@ class SmartAppMonitor extends CompilationCustomizer{
                    // deviceNames2.add(ma2)
                 }
 
-            }
+            }*/
 
+            // subscribe part - store the input devices and handler methods in device_handlerPair
             if(methText.equals("subscribe") || methText.equals("subscribeToCommand")) {
                 def args = mce.getArguments()
                 def deviceN
@@ -362,12 +373,12 @@ class SmartAppMonitor extends CompilationCustomizer{
 
                     } else if (methText.contains("hasCapability")) {
 
-                    } else if (methText.contains("each") || methText.contains("eachWithIndex")) {
+                    } else if (methText.contains("each") || methText.contains("eachWithIndex")) {  // if the smartapp use the devices variable with closure
                         closureDeviceNames = new ArrayList<Map>()
                         def recver = mce.getReceiver()
                         mce.getAt("arguments").each { a ->
                             if (a instanceof ClosureExpression) {
-                                if (a.getParameters()) {
+                                if (a.getParameters()) {  // if the closure has parameters
                                     a.getParameters().each { a_p ->
                                         if (recver instanceof VariableExpression) {
                                             VariableExpression recvex = (VariableExpression) recver
@@ -384,7 +395,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                                             closureDeviceNames.add(["realDevice": realDevice, "closureDevice": closureDevice, "capability": capa])
                                         }
                                     }
-                                } else {
+                                } else { // it the closure doesn't have any parameters
                                     if (recver instanceof VariableExpression) {
                                         VariableExpression recvex = (VariableExpression) recver
                                         def realDevice
@@ -405,15 +416,15 @@ class SmartAppMonitor extends CompilationCustomizer{
                         }
                     } else {
                         def recver = mce.getReceiver()
-                        boolean thereisaction = false
-                        if (recver.getClass().toString().contains("MethodCallExpression")) {
+                        boolean thereisaction = false // 만약 action method 가 존재하는데 action으로 인식하지 못하는 경우를 체크하는 변수
+                        if (recver.getClass().toString().contains("MethodCallExpression")) { // if the method call's receiver is a method call expression
                             def deviceN
-                            for (Map m : method_returnPair) {
+                            for (Map m : method_returnPair) {  // find the method's return value in method_returnPair
                                 if (recver.getAt("methodAsString").equals(m.get("method"))) {
                                     deviceN = m.get("return")
                                 }
                             }
-                            for (Map m : deviceNames2) {
+                            for (Map m : deviceNames2) { // find the device in deviceNames2
                                 if (deviceN.toString().equals(m.get("name"))) {
                                     thereisaction = true;
                                     String code = "\t//Inserted Code\n"
@@ -460,7 +471,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
                         if(thereisaction == false) {
                             for(String s : actionSet) {
-                                if(s.equals(methText)) {
+                                if(s.equals(methText)) { // 만약 action method 가 존재하는데 action으로 인식하지 못하는 경우
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"Capability\", \"Devices\", \"action\")"
                                     insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
@@ -476,25 +487,29 @@ class SmartAppMonitor extends CompilationCustomizer{
 
         }
 
+
+        // if there is not any { and } in the if-else block
         @Override
         void visitIfElse(IfStatement ifElse) {
             Statement ifStat = ifElse.getIfBlock()
             Statement elseStat = ifElse.getElseBlock()
             if(!ifStat.getText().contains("{")) {
-                if(ifElse.getLineNumber() == ifStat.getLineNumber()) {
+                if(ifElse.getLineNumber() == ifStat.getLineNumber()) { // if if-Stat doesn't have any { } and the stat has only one line
                     def code = of.getFile().readLines().get(ifStat.getLineNumber()+numberOfLineAdded)
                     def code2 = code.substring(ifStat.getColumnNumber()-1, ifStat.getLastColumnNumber()-1)
-                    insertCodeMap.add(["code": code2, "lineNumber": ifStat.getLineNumber(), "addedLine": 1, "exception": 1])
+                    insertCodeMap.add(["code": code2, "lineNumber": ifStat.getLineNumber(), "addedLine": 1, "exception": 1]) //execption: 1
                 }
-                else {
+                else { // if if-Stat doesn't have any { }
                     inIfStat = true
                     insertCodeMap.add(["code": "\t{", "lineNumber": ifStat.getLineNumber(), "addedLine": 1, "exception": 0])
                     insertCodeMap.add(["code": "\t}", "lineNumber": ifStat.getLineNumber() + 1, "addedLine": 1, "exception": 0])
                 }
             }
+
+            // i think this part has not completed yet
             if(!elseStat.getAt("class").toString().contains("EmptyStatement")) {
-                if(!elseStat.getText().contains("{")) {
-                    if(elseStat.hasProperty("ifBlock")) {
+                if(!elseStat.getText().contains("{")) { //if else-stat doesn't have any { }
+                    if(elseStat.hasProperty("ifBlock")) { // if the block is ifelse block
                         if (elseStat.getAt("ifBlock") != null) {
 
                         }
@@ -521,8 +536,8 @@ class SmartAppMonitor extends CompilationCustomizer{
             def f = of.getFile()
             def lines = f.readLines()
             int numberOfLineAdded2 = 0
-            if(exceptionBool == 1 || exceptionBool == 2) {
-                if(exceptionBool == 1) {
+            if(exceptionBool == 1 || exceptionBool == 2) { // case1 or case2
+                if(exceptionBool == 1) { //case1: if if-block dont have { } and have only one line
                     File fileToBeModified = of.getFile()
                     String oldContent = ""
                     BufferedReader reader = new BufferedReader(new FileReader(fileToBeModified))
@@ -553,7 +568,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                     writer.close()
                     numberOfLineAdded += numberOfLineAdded2
                 }
-                else if(exceptionBool == 2) {
+                else if(exceptionBool == 2) { //case2: if method have only one line
                     File fileToBeModified = of.getFile()
                     String oldContent = ""
                     BufferedReader reader = new BufferedReader(new FileReader(fileToBeModified))
@@ -583,7 +598,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                     numberOfLineAdded += numberOfLineAdded2
                 }
             }
-            else if(exceptionBool == 0) {
+            else if(exceptionBool == 0) { //general case
                 lines = lines.plus(lineNum + numberOfLineAdded, code)
                 f.text = lines.join('\n')
                 numberOfLineAdded += addLine
@@ -603,16 +618,13 @@ class SmartAppMonitor extends CompilationCustomizer{
 
     }
 
+    // store action Set (get the action information from the database)
     void setActionSet() {
-       // println("start")
         def sql = Sql.newInstance('jdbc:mysql://203.252.195.182:3306/api_smartAppMonitor_test',
                 'root', '1234', 'com.mysql.jdbc.Driver')
 
         sql.eachRow('select * from Capabilities') {
             tp ->
-                //println([tp.capability, tp.action])
-                //if(tp.action != null)
-                 //   println tp.action
                 if(tp.action != null) {
                     String temp = tp.action
                     def actionSt = temp.split()
@@ -624,12 +636,9 @@ class SmartAppMonitor extends CompilationCustomizer{
         }
 
         sql.close()
-
-        /*for(String s : actionSet) {
-            println s
-        }*/
     }
 
+    //for multiple files -> reset variables for each file
     void resetVariables() {
         numberOfLineAdded = 0
         closureDeviceNames = new ArrayList<Map>()
