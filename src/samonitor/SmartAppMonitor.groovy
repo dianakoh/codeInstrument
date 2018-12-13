@@ -1,14 +1,17 @@
 package samonitor
 
+import org.codehaus.groovy.ast.expr.BooleanExpression
 import org.codehaus.groovy.ast.ClassCodeVisitorSupport
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.MethodNode
 import org.codehaus.groovy.ast.expr.ArgumentListExpression
 import org.codehaus.groovy.ast.expr.ClosureExpression
 import org.codehaus.groovy.ast.expr.ConstantExpression
+import org.codehaus.groovy.ast.expr.Expression
 import org.codehaus.groovy.ast.expr.GStringExpression
 import org.codehaus.groovy.ast.expr.MapExpression
 import org.codehaus.groovy.ast.expr.MethodCallExpression
+import org.codehaus.groovy.ast.expr.TernaryExpression
 import org.codehaus.groovy.ast.expr.VariableExpression
 import org.codehaus.groovy.ast.stmt.EmptyStatement
 import org.codehaus.groovy.ast.stmt.IfStatement
@@ -40,7 +43,7 @@ class SmartAppMonitor extends CompilationCustomizer{
     Set<Map> method_returnPair
 
     Set<String> actionSet
-
+    Set<Integer> ternaryLineNumber
 
     boolean skipMethod
     boolean inIfStat
@@ -67,6 +70,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         method_returnPair = new HashSet<Map>()
 
         actionSet = new HashSet<String>()
+        ternaryLineNumber = new HashSet<Integer>()
 
         skipMethod = true
         inIfStat = false
@@ -86,7 +90,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         for(Map m : insertCodeMap) {
             codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"), m.get("exception"))
         }
-        println of.getText()
+        //println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
 
@@ -179,6 +183,47 @@ class SmartAppMonitor extends CompilationCustomizer{
         @Override
         protected SourceUnit getSourceUnit() {
             return null;
+        }
+
+        @Override
+        void visitTernaryExpression(TernaryExpression tre) {
+            //println "te = " + tre.getText()
+            BooleanExpression be = tre.getBooleanExpression()
+            Expression te = tre.getTrueExpression()
+            Expression fe = tre.getFalseExpression()
+
+           // println "be prop = " + be.getProperties()
+           // println "te prop = " + te.getProperties()
+           // println "fe prop = " + fe.getProperties()
+            if(be.hasProperty("receiver")) {
+                String temp = be.getText()
+                def temp2 = temp.tokenize('.(')
+               for(String s : actionSet) {
+                   if(temp2.equals(s)) {
+                       ternaryLineNumber.add(tre.getLineNumber())
+                   }
+               }
+            }
+            if(te.hasProperty("receiver")) {
+                def temp = te.getText()
+                def temp2 = temp.tokenize('.(')
+                for(String s : actionSet) {
+                    if(temp2.equals(s)) {
+                        ternaryLineNumber.add(tre.getLineNumber())
+                    }
+                }
+            }
+            if(fe.hasProperty("receiver")) {
+               // println fe.getAt("method")
+                //println fe.getProperties()
+                def temp = fe.getText()
+                def temp2 = temp.tokenize('.(')
+                for(String s : actionSet) {
+                    if(temp2.equals(s)) {
+                        ternaryLineNumber.add(tre.getLineNumber())
+                    }
+                }
+            }
         }
     }
 
@@ -653,6 +698,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
         device_handlerPair = new HashSet<Map>()
         method_returnPair = new HashSet<Map>()
+        ternaryLineNumber = new HashSet<Integer>()
 
         skipMethod = true
         inIfStat = false
