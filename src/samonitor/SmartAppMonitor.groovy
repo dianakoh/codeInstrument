@@ -43,7 +43,7 @@ class SmartAppMonitor extends CompilationCustomizer{
     Set<Map> method_returnPair
 
     Set<String> actionSet
-    Set<Integer> ternaryLineNumber
+    Set<Map> ternaryLineNumber
 
     boolean skipMethod
     boolean inIfStat
@@ -70,7 +70,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         method_returnPair = new HashSet<Map>()
 
         actionSet = new HashSet<String>()
-        ternaryLineNumber = new HashSet<Integer>()
+        ternaryLineNumber = new HashSet<Map>()
 
         skipMethod = true
         inIfStat = false
@@ -181,11 +181,6 @@ class SmartAppMonitor extends CompilationCustomizer{
 
 
         @Override
-        protected SourceUnit getSourceUnit() {
-            return null;
-        }
-
-        @Override
         void visitTernaryExpression(TernaryExpression tre) {
             //println "te = " + tre.getText()
             BooleanExpression be = tre.getBooleanExpression()
@@ -199,8 +194,10 @@ class SmartAppMonitor extends CompilationCustomizer{
                 String temp = be.getText()
                 def temp2 = temp.tokenize('.(')
                for(String s : actionSet) {
-                   if(temp2.equals(s)) {
-                       ternaryLineNumber.add(tre.getLineNumber())
+                   if(temp2[1].equals(s)) {
+                       Map a = ["lineNumber": tre.getLineNumber(), "colNumber": be.getColumnNumber()]
+                       ternaryLineNumber.add(a)
+                       //println "be = " + be.getColumnNumber()
                    }
                }
             }
@@ -208,8 +205,9 @@ class SmartAppMonitor extends CompilationCustomizer{
                 def temp = te.getText()
                 def temp2 = temp.tokenize('.(')
                 for(String s : actionSet) {
-                    if(temp2.equals(s)) {
-                        ternaryLineNumber.add(tre.getLineNumber())
+                    if(temp2[1].equals(s)) {
+                        Map a = ["lineNumber": tre.getLineNumber(), "colNumber": te.getColumnNumber()]
+                        ternaryLineNumber.add(a)
                     }
                 }
             }
@@ -219,11 +217,17 @@ class SmartAppMonitor extends CompilationCustomizer{
                 def temp = fe.getText()
                 def temp2 = temp.tokenize('.(')
                 for(String s : actionSet) {
-                    if(temp2.equals(s)) {
-                        ternaryLineNumber.add(tre.getLineNumber())
+                    if(temp2[1].equals(s)) {
+                        Map a = ["lineNumber": tre.getLineNumber(), "colNumber": fe.getColumnNumber()]
+                        ternaryLineNumber.add(a)
                     }
                 }
             }
+        }
+
+        @Override
+        protected SourceUnit getSourceUnit() {
+            return null;
         }
     }
 
@@ -581,7 +585,7 @@ class SmartAppMonitor extends CompilationCustomizer{
             def f = of.getFile()
             def lines = f.readLines()
             int numberOfLineAdded2 = 0
-            if(exceptionBool == 1 || exceptionBool == 2) { // case1 or case2
+            if(exceptionBool == 1 || exceptionBool == 2 || exceptionBool == 3) { // case1 or case2 or case3
                 if(exceptionBool == 1) { //case1: if if-block dont have { } and have only one line
                     File fileToBeModified = of.getFile()
                     String oldContent = ""
@@ -642,6 +646,9 @@ class SmartAppMonitor extends CompilationCustomizer{
                     writer.close()
                     numberOfLineAdded += numberOfLineAdded2
                 }
+                else if(exceptionBool == 3) {
+
+                }
             }
             else if(exceptionBool == 0) { //general case
                 lines = lines.plus(lineNum + numberOfLineAdded, code)
@@ -698,7 +705,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
         device_handlerPair = new HashSet<Map>()
         method_returnPair = new HashSet<Map>()
-        ternaryLineNumber = new HashSet<Integer>()
+        ternaryLineNumber = new HashSet<Map>()
 
         skipMethod = true
         inIfStat = false
