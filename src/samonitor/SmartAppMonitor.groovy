@@ -48,7 +48,7 @@ class SmartAppMonitor extends CompilationCustomizer{
     boolean skipMethod
     boolean inIfStat
     boolean inHandler
-
+    boolean isTernary
     int preferenceStartLine
 
 
@@ -75,7 +75,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         skipMethod = true
         inIfStat = false
         inHandler = false
-
+        isTernary = false
         preferenceStartLine = 0
 
     }
@@ -239,6 +239,7 @@ class SmartAppMonitor extends CompilationCustomizer{
             def methName = meth.getName()
             def param
             def deviceN
+            def deviceC
 
             // get the method's parameters
             meth.getParameters().each { p ->
@@ -251,7 +252,12 @@ class SmartAppMonitor extends CompilationCustomizer{
 					deviceN = m.get("device")
 				}
 			}
-			
+			for(Map m : deviceNames2) {
+                if(deviceN == m.get("name")) {
+                    deviceC = m.get("capability")
+
+                }
+            }
             if(!methName.equals("main") && !methName.equals("run") && !methName.equals("installed") && !methName.equals("updated") && !methName.equals("initialize")) {
                 skipMethod = false
                 inHandler = false
@@ -264,9 +270,9 @@ class SmartAppMonitor extends CompilationCustomizer{
                         else {
                             String code = "\t//Inserted Code\n"
                             if (deviceN.toString().equals("app") || deviceN.toString().equals("location")) {
-                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"event\", \"" + deviceN + "\", \"event\")"
+                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"\${" + param + ".value}\", \"" + deviceN + "\", \"event\")"
                             } else {
-                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"event\", \"\${" + param + ".getDevice()}\", \"event\")"
+                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\")"
                             }
                             insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
 
@@ -487,7 +493,18 @@ class SmartAppMonitor extends CompilationCustomizer{
 
                             for (Map m : deviceNames2) {
                                 if (recvex.getName().equals(m.get("name"))) {
-                                    thereisaction = true;
+                                    for(Map m2 : ternaryLineNumber) {
+                                        if(mce.getLineNumber() == m2.get("lineNumber")) {
+                                            isTernary = true
+                                            thereisaction = true
+                                            outputDeviceNames.add(m.get("name"))
+                                            String code = "/*Inserted Code*/ "
+                                            code += "smartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
+                                            insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 0, "exception": 3])
+                                            break
+                                        }
+                                    }
+                                    thereisaction = true
                                     outputDeviceNames.add(m.get("name"))
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
@@ -646,9 +663,30 @@ class SmartAppMonitor extends CompilationCustomizer{
                     writer.close()
                     numberOfLineAdded += numberOfLineAdded2
                 }
-                else if(exceptionBool == 3) {
+                /*else if(exceptionBool == 3) {
+                    File fileToBeModified = of.getFile()
+                    String oldContent = ""
+                    BufferedReader reader = new BufferedReader(new FileReader(fileToBeModified))
+                    String line = reader.readLine()
+                    int lineNum2 = 1;
+                    while (line != null) {
+                        if (lineNum + numberOfLineAdded + 1 == lineNum2) {
+                            println code
+                        } else {
+                            //oldContent = oldContent + line + System.lineSeparator()
+                        }
+                        oldContent = oldContent + line + System.lineSeparator()
+                        line = reader.readLine()
+                        lineNum2++
+                    }
+                    String newContent = oldContent
+                    FileWriter writer = new FileWriter(fileToBeModified)
+                    writer.write(newContent)
 
-                }
+                    reader.close()
+                    writer.close()
+                    //println code
+                }*/
             }
             else if(exceptionBool == 0) { //general case
                 lines = lines.plus(lineNum + numberOfLineAdded, code)
@@ -672,7 +710,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
     // store action Set (get the action information from the database)
     void setActionSet() {
-        def sql = Sql.newInstance('jdbc:mysql://203.252.195.182:3306/api_smartAppMonitor_test',
+        def sql = Sql.newInstance('jdbc:mysql://203.252.195.182:3306/api_smartAppMonitor_test?autoReconnect=true&useSSL=false',
                 'root', '1234', 'com.mysql.jdbc.Driver')
 
         sql.eachRow('select * from Capabilities') {
