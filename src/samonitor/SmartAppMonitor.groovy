@@ -9,9 +9,11 @@ import org.codehaus.groovy.ast.expr.ClosureExpression
 import org.codehaus.groovy.ast.expr.ConstantExpression
 import org.codehaus.groovy.ast.expr.Expression
 import org.codehaus.groovy.ast.expr.GStringExpression
+import org.codehaus.groovy.ast.expr.MapEntryExpression
 import org.codehaus.groovy.ast.expr.MapExpression
 import org.codehaus.groovy.ast.expr.MethodCallExpression
 import org.codehaus.groovy.ast.expr.TernaryExpression
+import org.codehaus.groovy.ast.expr.TupleExpression
 import org.codehaus.groovy.ast.expr.VariableExpression
 import org.codehaus.groovy.ast.stmt.EmptyStatement
 import org.codehaus.groovy.ast.stmt.IfStatement
@@ -45,11 +47,15 @@ class SmartAppMonitor extends CompilationCustomizer{
     Set<String> actionSet
     Set<Map> ternaryLineNumber
 
+    List<String> pageNames
+    Set<String> scheduleMethodNames
+
     boolean skipMethod
     boolean inIfStat
     boolean inHandler
     boolean isTernary
     int preferenceStartLine
+    boolean isPage
 
 
     public SmartAppMonitor()
@@ -72,11 +78,15 @@ class SmartAppMonitor extends CompilationCustomizer{
         actionSet = new HashSet<String>()
         ternaryLineNumber = new HashSet<Map>()
 
+        pageNames = new ArrayList<String>()
+        scheduleMethodNames = new HashSet<String>()
+
         skipMethod = true
         inIfStat = false
         inHandler = false
         isTernary = false
         preferenceStartLine = 0
+        isPage = false
 
     }
     @Override
@@ -90,7 +100,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         for(Map m : insertCodeMap) {
             codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"), m.get("exception"))
         }
-        //println of.getText()
+       // println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
 
@@ -126,6 +136,22 @@ class SmartAppMonitor extends CompilationCustomizer{
         void visitMethodCallExpression(MethodCallExpression mce) {
             def methText = mce.getMethodAsString()
 
+            if(methText.equals("page")) {
+                isPage = true
+                def args = mce.getArguments()
+                args.getAt("expressions").each { exarg ->
+                    if(exarg.getAt("text").toString().contains("name")) {
+                        List<String> temp = exarg.getAt("text").toString().tokenize('[,]')
+                        temp.each {
+                            if(it.contains("name")) {
+                                pageNames.add(it.tokenize(': ')[1])
+                            }
+                        }
+
+                    }
+
+                }
+            }
             if (methText.equals("input") || methText.equals("ifSet")) {
                 def args = mce.getArguments()
                 if (args.getAt("text").toString().contains("capability") || args.getAt("text").toString().contains("device") || args.getAt("text").toString().contains("attribute")) {
@@ -175,6 +201,12 @@ class SmartAppMonitor extends CompilationCustomizer{
                     if(ma2 != null && !ma2.isEmpty())
                         deviceNames2.add(ma2)
                 }
+            }
+
+            if(methText.equals("schedule")) {
+                String temp = mce.getArguments().getAt("text").toString()
+                List<String> temp2 = temp.tokenize('(), ')
+                scheduleMethodNames.add(temp2[temp2.size()-1])
             }
             super.visitMethodCallExpression(mce)
         }
@@ -285,14 +317,30 @@ class SmartAppMonitor extends CompilationCustomizer{
 					}
                 }
                 if(inHandler == false) { //if the method is not handler method
+                    String sche = ""
+                    for(String s : scheduleMethodNames) {
+                        if(methName.equals(s)) {
+                            sche = "scheduleMethodCall"
+                        }
+                    }
                     if(meth.getLineNumber() == meth.getLastLineNumber()) { // if the method has only one line
                         String code = "\t//Inserted Code\n"
-                        code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
+                        if(sche != "") {
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"methodCall\")"
+                        }
+                        else {
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
+                        }
                         insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
                     }
                     else {
                         String code = "\t//Inserted Code\n"
-                        code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
+                        if(sche != "") {
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"methodCall\")"
+                        }
+                        else {
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
+                        }
                         insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
                     }
                 }
@@ -317,9 +365,9 @@ class SmartAppMonitor extends CompilationCustomizer{
             def methText = mce.getMethodAsString()
 
             if(methText.equals("preferences")){
-                if(mce.getArguments().toString().contains("page")) { //if the smartapp's preference has page structures
+                if(isPage == true) { //if the smartapp's preference has page structures
                     String code = "\t//Inserted Code\n"
-                    code += "\tpage(name: \"Select SmartApp Monitor Page\") {\n"
+                    code += "\tpage(name: \"Select SmartApp Monitor Page\", nextPage: \"" + pageNames[0] + "\", uninstall: true) {\n"
                     code += "\t\tsection(\"Select SmartAppMonitor\") {\n" + "\t\t\tinput \"smartAppMonitor\", \"capability.execute\"\n" + "\t\t}"
                     code += "\n\t}"
                     insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 6, "exception": 0])
@@ -745,10 +793,15 @@ class SmartAppMonitor extends CompilationCustomizer{
         method_returnPair = new HashSet<Map>()
         ternaryLineNumber = new HashSet<Map>()
 
+        pageNames = new ArrayList<String>()
+        scheduleMethodNames = new HashSet<String>()
+
         skipMethod = true
         inIfStat = false
         inHandler = false
 
         preferenceStartLine = 0
+
+        isPage = false
     }
 }
