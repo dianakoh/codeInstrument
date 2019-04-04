@@ -1,5 +1,6 @@
 package samonitor
 
+import javafx.beans.binding.ListExpression
 import org.codehaus.groovy.ast.expr.BooleanExpression
 import org.codehaus.groovy.ast.ClassCodeVisitorSupport
 import org.codehaus.groovy.ast.ClassNode
@@ -100,7 +101,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         for(Map m : insertCodeMap) {
             codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"), m.get("exception"))
         }
-       // println of.getText()
+        println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
 
@@ -135,6 +136,19 @@ class SmartAppMonitor extends CompilationCustomizer{
         @Override
         void visitMethodCallExpression(MethodCallExpression mce) {
             def methText = mce.getMethodAsString()
+
+            if(methText.equals("definition")) {
+                mce.getArguments().each { arg ->
+                    arg.getAt("mapEntryExpressions").each { mee ->
+                        ConstantExpression key = mee.getAt("keyExpression")
+                        if(key.getText().equals("namespace")) {
+                            ConstantExpression value = mee.getAt("valueExpression")
+                            //println(value.getText())
+                        }
+
+                    }
+                }
+            }
 
             if(methText.equals("page")) {
                 isPage = true
@@ -208,6 +222,13 @@ class SmartAppMonitor extends CompilationCustomizer{
                 List<String> temp2 = temp.tokenize('(), ')
                 scheduleMethodNames.add(temp2[temp2.size()-1])
             }
+            if(methText != null && methText.contains("runEvery") && !methText.equals("runScript")) {
+                String temp = mce.getArguments().getAt("text").toString()
+                println temp
+                //List<String> temp2 = temp.tokenize(',')
+                //scheduleMethodNames.add(temp2[1].tokenize(' ()')[0])
+               //println
+            }
             super.visitMethodCallExpression(mce)
         }
 
@@ -273,7 +294,7 @@ class SmartAppMonitor extends CompilationCustomizer{
             def deviceN
             def deviceC
 
-            // get the method's parameters
+            // get the method's parameters - ex. evt
             meth.getParameters().each { p ->
 				param = p.getAt("name")
 			}
@@ -355,7 +376,15 @@ class SmartAppMonitor extends CompilationCustomizer{
             else if(methName.equals("installed")) {
                 String code = "\t//Inserted Code\n"
                 code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
-                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                if(meth.getFirstStatement() != null)
+                    insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                else
+                    if(meth.getLineNumber() == meth.getLastLineNumber())
+                        insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber(), "addedLine": 2, "exception": 2])
+                    else {
+                        insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber(), "addedLine": 2, "exception": 0])
+                    }
+
             }
             super.visitMethod(meth)
         }
@@ -758,7 +787,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
     // store action Set (get the action information from the database)
     void setActionSet() {
-        def sql = Sql.newInstance('jdbc:mysql://203.252.195.182:3306/api_smartAppMonitor_test?autoReconnect=true&useSSL=false',
+        /*def sql = Sql.newInstance('jdbc:mysql://203.252.195.182:3306/api_smartAppMonitor_test?autoReconnect=true&useSSL=false',
                 'root', '1234', 'com.mysql.jdbc.Driver')
 
         sql.eachRow('select * from Capabilities') {
@@ -773,7 +802,16 @@ class SmartAppMonitor extends CompilationCustomizer{
 
         }
 
-        sql.close()
+        sql.close()*/
+        actionSet = ["setLightingMode", "setAirConditionerMode", "both", "off", "siren", "strobe", "setMute", "mute", "unmute",
+         "setVolume", "volumeUp", "volumeDown", "setColor", "setHue", "setSaturation", "setColorTemperature", "setDishwasherMode",
+         "setMachineState", "close", "open", "setDryerMode", "setMachineState", "close", "open", "setFanSpeed", "setInfraredLevel",
+         "lock", "unlock", "setInputSource", "setPlaybackRepeatMode", "setPlaybackShuffle", "setPlaybackStatus", "play", "pause", "stop",
+         "fastForward", "rewind", "setOvenMode", "setMachineState", "stop", "setOvenSetpoint", "setRapidCooling", "setRefrigerationSetpoint",
+         "setRobotCleanerCleaningMode", "setRobotCleanerMovement", "setRobotCleanerTurboMode", "setLevel", "off", "on", "setCoolingSetpoint",
+         "fanAuto", "fanCirculate", "fanOn", "setThermostatFanMode", "setHeatingSetpoint", "auto", "cool", "emergencyHeat", "heat", "off", "setThermostatMode",
+         "beep", "setTvChannel", "channelUp", "channelDown", "close", "open", "setWasherMode", "setMachineState", "close", "open", "presetPosition" ]
+
     }
 
     //for multiple files -> reset variables for each file
