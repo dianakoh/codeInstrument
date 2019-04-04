@@ -1,6 +1,7 @@
 package samonitor
 
 import org.codehaus.groovy.control.CompilerConfiguration
+import org.codehaus.groovy.control.MultipleCompilationErrorsException
 
 class Main {
 
@@ -25,6 +26,8 @@ class Main {
                 def missingMethod = mme.toString()
                 if (!missingMethod.contains("definition"))
                     println "missing method: " + missingMethod
+            } catch(MultipleCompilationErrorsException mcee) {
+                mcee.printStackTrace()
             }
         }
     }

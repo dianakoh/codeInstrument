@@ -137,7 +137,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         void visitMethodCallExpression(MethodCallExpression mce) {
             def methText = mce.getMethodAsString()
 
-            if(methText.equals("definition")) {
+  /*         if(methText.equals("definition")) {
                 mce.getArguments().each { arg ->
                     arg.getAt("mapEntryExpressions").each { mee ->
                         ConstantExpression key = mee.getAt("keyExpression")
@@ -148,7 +148,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
                     }
                 }
-            }
+            } */
 
             if(methText.equals("page")) {
                 isPage = true
@@ -168,7 +168,7 @@ class SmartAppMonitor extends CompilationCustomizer{
             }
             if (methText.equals("input") || methText.equals("ifSet")) {
                 def args = mce.getArguments()
-                if (args.getAt("text").toString().contains("capability") || args.getAt("text").toString().contains("device") || args.getAt("text").toString().contains("attribute")) {
+                if (args.getAt("text").toString().contains("capability") || args.getAt("text").toString().contains("device") || args.getAt("text").toString().contains("attribute") || args.getAt("text").toString().contains("hub")) {
                     Map ma2 = [:]
                     args.each { arg ->
                         if (arg instanceof ConstantExpression) {
@@ -181,7 +181,11 @@ class SmartAppMonitor extends CompilationCustomizer{
                                 } else if (text.contains("attribute")) {
                                     ma2 += ["capability": arg.getText().substring(10)]
                                 }
-                            } else {
+                            }
+                            else if(text.contains("hub")) {
+                                ma2 += ["name": text, "capability": text]
+                            }
+                            else {
                                 ma2 += ["name": arg.getText()]
                             }
                         }
@@ -206,6 +210,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                                         }
                                         if(ma != null && !ma.isEmpty())
                                             deviceNames2.add(ma)
+                                        //println(deviceNames2)
                                     }
                                 }
 
@@ -214,6 +219,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                     }
                     if(ma2 != null && !ma2.isEmpty())
                         deviceNames2.add(ma2)
+                    //println(deviceNames2)
                 }
             }
 
@@ -224,7 +230,7 @@ class SmartAppMonitor extends CompilationCustomizer{
             }
             if(methText != null && methText.contains("runEvery") && !methText.equals("runScript")) {
                 String temp = mce.getArguments().getAt("text").toString()
-                println temp
+                //println temp
                 //List<String> temp2 = temp.tokenize(',')
                 //scheduleMethodNames.add(temp2[1].tokenize(' ()')[0])
                //println
@@ -379,10 +385,10 @@ class SmartAppMonitor extends CompilationCustomizer{
                 if(meth.getFirstStatement() != null)
                     insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
                 else
-                    if(meth.getLineNumber() == meth.getLastLineNumber())
+                    if(meth.getLineNumber() == meth.getLastLineNumber()) // if there is not any content in installed method
                         insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber(), "addedLine": 2, "exception": 2])
                     else {
-                        insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber(), "addedLine": 2, "exception": 0])
+                        insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber()+1, "addedLine": 2, "exception": 0])
                     }
 
             }
@@ -489,6 +495,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 }
                 
                 device_handlerPair.add([device:deviceN, handler:handlerN])
+                //println(device_handlerPair)
             }
 
             if(!skipMethod) {
@@ -720,8 +727,9 @@ class SmartAppMonitor extends CompilationCustomizer{
                     while (line != null) {
                         if (lineNum + numberOfLineAdded + 1 == lineNum2) {
                             def ind = line.indexOf('{')
+                            def ind2 = line.indexOf('}')
                             def temp_line1 = line.substring(0, ind+1)
-                            def temp_line2 = line.substring(ind+1, line.length()-1)
+                            def temp_line2 = line.substring(ind+1, ind2)
                             def temp_line = temp_line1 + "\n" + code + "\n" + temp_line2 + "\n}"
                             oldContent = oldContent + temp_line + System.lineSeparator()
                             numberOfLineAdded2 += addLine
