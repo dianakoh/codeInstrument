@@ -1,22 +1,16 @@
 package samonitor
 
-import javafx.beans.binding.ListExpression
 import org.codehaus.groovy.ast.expr.BooleanExpression
 import org.codehaus.groovy.ast.ClassCodeVisitorSupport
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.MethodNode
-import org.codehaus.groovy.ast.expr.ArgumentListExpression
 import org.codehaus.groovy.ast.expr.ClosureExpression
 import org.codehaus.groovy.ast.expr.ConstantExpression
 import org.codehaus.groovy.ast.expr.Expression
-import org.codehaus.groovy.ast.expr.GStringExpression
-import org.codehaus.groovy.ast.expr.MapEntryExpression
 import org.codehaus.groovy.ast.expr.MapExpression
 import org.codehaus.groovy.ast.expr.MethodCallExpression
 import org.codehaus.groovy.ast.expr.TernaryExpression
-import org.codehaus.groovy.ast.expr.TupleExpression
 import org.codehaus.groovy.ast.expr.VariableExpression
-import org.codehaus.groovy.ast.stmt.EmptyStatement
 import org.codehaus.groovy.ast.stmt.IfStatement
 import org.codehaus.groovy.ast.stmt.Statement
 import org.codehaus.groovy.classgen.GeneratorContext
@@ -50,6 +44,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
     List<String> pageNames
     Set<String> scheduleMethodNames
+    Set<Map> scheduleTimeandMethod
 
     boolean skipMethod
     boolean inIfStat
@@ -81,6 +76,8 @@ class SmartAppMonitor extends CompilationCustomizer{
 
         pageNames = new ArrayList<String>()
         scheduleMethodNames = new HashSet<String>()
+        scheduleTimeandMethod = new HashSet<Map>()
+
 
         skipMethod = true
         inIfStat = false
@@ -132,7 +129,6 @@ class SmartAppMonitor extends CompilationCustomizer{
             super.visitMethod(meth)
         }
 
-        // input part - store devices information in deviceNames2
         @Override
         void visitMethodCallExpression(MethodCallExpression mce) {
             def methText = mce.getMethodAsString()
@@ -150,6 +146,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 }
             } */
 
+            // if the smart app has page structure -> store the first page's name in pageNames (ArrayList)
             if(methText.equals("page")) {
                 isPage = true
                 def args = mce.getArguments()
@@ -166,6 +163,8 @@ class SmartAppMonitor extends CompilationCustomizer{
 
                 }
             }
+
+            // input part -> store the input devices in deviceNames2 (HashSet<Map>)
             if (methText.equals("input") || methText.equals("ifSet")) {
                 def args = mce.getArguments()
                 if (args.getAt("text").toString().contains("capability") || args.getAt("text").toString().contains("device") || args.getAt("text").toString().contains("attribute") || args.getAt("text").toString().contains("hub")) {
@@ -210,7 +209,6 @@ class SmartAppMonitor extends CompilationCustomizer{
                                         }
                                         if(ma != null && !ma.isEmpty())
                                             deviceNames2.add(ma)
-                                        //println(deviceNames2)
                                     }
                                 }
 
@@ -219,14 +217,16 @@ class SmartAppMonitor extends CompilationCustomizer{
                     }
                     if(ma2 != null && !ma2.isEmpty())
                         deviceNames2.add(ma2)
-                    //println(deviceNames2)
                 }
             }
 
+            // if the smart app has schedule methods like schedule, runEveryXMinutes, ... etc, store the method names in scheduleMethodNames (HashSet<String>)
             if(methText.equals("schedule")) {
                 String temp = mce.getArguments().getAt("text").toString()
                 List<String> temp2 = temp.tokenize('(), ')
                 scheduleMethodNames.add(temp2[temp2.size()-1])
+                scheduleTimeandMethod.add(["time": temp2[0], "method": temp2[temp2.size()-1]])
+                //println(scheduleTimeandMethod)
             }
             if(methText != null && methText.contains("runEvery") && !methText.equals("runScript")) {
                 String temp = mce.getArguments().getAt("text").toString()
@@ -345,30 +345,39 @@ class SmartAppMonitor extends CompilationCustomizer{
                 }
                 if(inHandler == false) { //if the method is not handler method
                     String sche = ""
+                    String scheduleTime = ""
                     for(String s : scheduleMethodNames) {
-                        if(methName.equals(s)) {
-                            sche = "scheduleMethodCall"
+                        if (methName.equals(s)) {
+                            sche = "scheduleMethod"
+                        }
+                        for(Map m : scheduleTimeandMethod) {
+                            if(m.get("method").toString().equals(methName))
+                                scheduleTime = m.get("time").toString()
                         }
                     }
                     if(meth.getLineNumber() == meth.getLastLineNumber()) { // if the method has only one line
                         String code = "\t//Inserted Code\n"
                         if(sche != "") {
-                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"methodCall\")"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\")\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"handlerMethod\")"
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 2]) //exception: 2
                         }
                         else {
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
                         }
-                        insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
                     }
                     else {
                         String code = "\t//Inserted Code\n"
                         if(sche != "") {
-                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"methodCall\")"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\")\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"handlerMethod\")"
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 0])
                         }
                         else {
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
                         }
-                        insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
                     }
                 }
             }
@@ -414,61 +423,6 @@ class SmartAppMonitor extends CompilationCustomizer{
                 }
 
             }
-
-           /* if(methText.equals("input") || methText.equals("ifSet")) {
-                def args = mce.getArguments()
-                if(args.getAt("text").toString().contains("capability") || args.getAt("text").toString().contains("device") || args.getAt("text").toString().contains("attribute")) {
-                    Map ma2 = [:]
-                    args.each { arg ->
-                        if(arg instanceof ConstantExpression) {
-                            String text = arg.getText()
-                            if(text.contains("capability") || text.contains("device") || text.contains("attribute")) {
-                                if(text.contains("capability")) {
-                                    ma2 += ["capability": arg.getText().substring(11)]
-                                }
-                                else if(text.contains("device")) {
-                                    ma2 += ["capability": arg.getText().substring(7)]
-                                }
-                                else if(text.contains("attribute")) {
-                                    ma2 += ["capability": arg.getText().substring(10)]
-                                }
-                            }
-                            else {
-                                ma2 += ["name" : arg.getText()]
-                            }
-                        }
-
-                        if (arg instanceof MapExpression) {
-                            //println arg
-                            Map ma = [:]
-                            arg.getMapEntryExpressions().each { m ->
-                                if (m.getKeyExpression().getText().equals("name")) {
-                                    deviceNames.add(m.getValueExpression().getText())
-                                    ma = ["name": m.getValueExpression().getText()]
-                                }
-                                if(m.getKeyExpression().getText().equals("type")) {
-                                    def text = m.getValueExpression().getText()
-                                    if(text.contains("capability.") || text.contains("device") || text.contains("attribute")) {
-                                        if(text.contains("capability") ){
-                                            ma += ["capability": text.substring(11)]
-                                        }
-                                        else if(text.contains("device") ){
-                                            ma += ["capability": text.substring(7)]
-                                        }
-                                        else if(text.contains("attribute") ){
-                                            ma += ["capability": text.substring(10)]
-                                        }
-                                       // deviceNames2.add(ma)
-                                    }
-                                }
-
-                            }
-                        }
-                    }
-                   // deviceNames2.add(ma2)
-                }
-
-            }*/
 
             // subscribe part - store the input devices and handler methods in device_handlerPair
             if(methText.equals("subscribe") || methText.equals("subscribeToCommand")) {
@@ -841,6 +795,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
         pageNames = new ArrayList<String>()
         scheduleMethodNames = new HashSet<String>()
+        scheduleTimeandMethod = new HashSet<Map>()
 
         skipMethod = true
         inIfStat = false
