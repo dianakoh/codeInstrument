@@ -233,6 +233,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                     temp3 = temp2[1].tokenize(' ')
                 String handler = temp3[0]
                 //scheduleMethodNames.add(temp2[temp2.size()-1])
+                scheduleMethodNames.add(handler)
                 scheduleTimeandMethod.add(["time": time, "method": handler])
                 //println(scheduleTimeandMethod)
             }
@@ -256,8 +257,8 @@ class SmartAppMonitor extends CompilationCustomizer{
                 else if(temp2.size() == 3)
                     temp3 = temp2[1].tokenize(' ')
                 String handler = temp3[0]
+                scheduleMethodNames.add(handler)
                 scheduleTimeandMethod.add(["time": time, "method": handler])
-
             }
             super.visitMethodCallExpression(mce)
         }
@@ -375,8 +376,9 @@ class SmartAppMonitor extends CompilationCustomizer{
                             sche = "scheduleMethod"
                         }
                         for(Map m : scheduleTimeandMethod) {
-                            if(m.get("method").toString().equals(methName))
+                            if(m.get("method").toString().equals(methName)) {
                                 scheduleTime = m.get("time").toString()
+                            }
                         }
                     }
                     if(meth.getLineNumber() == meth.getLastLineNumber()) { // if the method has only one line
