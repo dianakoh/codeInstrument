@@ -1,5 +1,6 @@
 package samonitor
 
+import org.codehaus.groovy.ast.expr.BinaryExpression
 import org.codehaus.groovy.ast.expr.BooleanExpression
 import org.codehaus.groovy.ast.ClassCodeVisitorSupport
 import org.codehaus.groovy.ast.ClassNode
@@ -223,17 +224,40 @@ class SmartAppMonitor extends CompilationCustomizer{
             // if the smart app has schedule methods like schedule, runEveryXMinutes, ... etc, store the method names in scheduleMethodNames (HashSet<String>)
             if(methText.equals("schedule")) {
                 String temp = mce.getArguments().getAt("text").toString()
-                List<String> temp2 = temp.tokenize('(), ')
-                scheduleMethodNames.add(temp2[temp2.size()-1])
-                scheduleTimeandMethod.add(["time": temp2[0], "method": temp2[temp2.size()-1]])
+                List<String> temp2 = temp.tokenize(',')
+                String time = temp2[0].substring(1)
+                List<String> temp3
+                if(temp2.size() == 2)
+                    temp3 = temp2[1].substring(0, temp2[1].length()-1).tokenize(' ')
+                else if(temp2.size() == 3)
+                    temp3 = temp2[1].tokenize(' ')
+                String handler = temp3[0]
+                //scheduleMethodNames.add(temp2[temp2.size()-1])
+                scheduleTimeandMethod.add(["time": time, "method": handler])
                 //println(scheduleTimeandMethod)
             }
-            if(methText != null && methText.contains("runEvery") && !methText.equals("runScript")) {
+            /*if(methText != null && methText.contains("runEvery") && !methText.equals("runScript")) {
                 String temp = mce.getArguments().getAt("text").toString()
                 //println temp
                 //List<String> temp2 = temp.tokenize(',')
                 //scheduleMethodNames.add(temp2[1].tokenize(' ()')[0])
                //println
+            }*/
+            /*if(methText != null && methText.contains("runEvery")) {
+                println "runEvery"
+            }*/
+            if(methText.equals("runOnce")) {
+                String temp = mce.getArguments().getAt("text").toString()
+                List<String> temp2 = temp.tokenize(',')
+                String time = temp2[0].substring(1)
+                List<String> temp3
+                if(temp2.size() == 2)
+                    temp3 = temp2[1].substring(0, temp2[1].length()-1).tokenize(' ')
+                else if(temp2.size() == 3)
+                    temp3 = temp2[1].tokenize(' ')
+                String handler = temp3[0]
+                scheduleTimeandMethod.add(["time": time, "method": handler])
+
             }
             super.visitMethodCallExpression(mce)
         }
