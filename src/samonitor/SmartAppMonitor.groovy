@@ -47,19 +47,12 @@ class SmartAppMonitor extends CompilationCustomizer{
     Set<String> scheduleMethodNames
     Set<Map> scheduleTimeandMethod
 
-    Set<Map> inputVariableNames
-    Set<Map> methodParameterNames
-
-    Set<String> inputType
-
     boolean skipMethod
     boolean inIfStat
     boolean inHandler
     boolean isTernary
     int preferenceStartLine
     boolean isPage
-
-    int currentLineNum
 
 
     public SmartAppMonitor()
@@ -86,8 +79,6 @@ class SmartAppMonitor extends CompilationCustomizer{
         scheduleMethodNames = new HashSet<String>()
         scheduleTimeandMethod = new HashSet<Map>()
 
-        inputVariableNames = new HashSet<Map>()
-        methodParameterNames = new HashSet<Map>()
 
         skipMethod = true
         inIfStat = false
@@ -95,10 +86,6 @@ class SmartAppMonitor extends CompilationCustomizer{
         isTernary = false
         preferenceStartLine = 0
         isPage = false
-
-        currentLineNum = 0;
-
-        inputType = ["text", "enum", "bool", "boolean", "decimal", "email", "number", "password", "phone", "time"]
 
     }
     @Override
@@ -112,7 +99,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         for(Map m : insertCodeMap) {
             codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"), m.get("exception"))
         }
-        //println of.getText()
+        println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
 
@@ -147,21 +134,18 @@ class SmartAppMonitor extends CompilationCustomizer{
         void visitMethodCallExpression(MethodCallExpression mce) {
             def methText = mce.getMethodAsString()
 
-           /*if(methText.equals("definition")) {
+  /*         if(methText.equals("definition")) {
                 mce.getArguments().each { arg ->
                     arg.getAt("mapEntryExpressions").each { mee ->
                         ConstantExpression key = mee.getAt("keyExpression")
-                        /*if(key.getText().equals("namespace")) {
+                        if(key.getText().equals("namespace")) {
                             ConstantExpression value = mee.getAt("valueExpression")
                             //println(value.getText())
                         }
-                        if(key.getText().equals("name")) {
-                            ConstantExpression value = mee.getAt("valueExpression")
-                            println(value.getText())
-                        }
+
                     }
                 }
-            }*/
+            } */
 
             // if the smart app has page structure -> store the first page's name in pageNames (ArrayList)
             if(methText.equals("page")) {
@@ -235,35 +219,6 @@ class SmartAppMonitor extends CompilationCustomizer{
                     if(ma2 != null && !ma2.isEmpty())
                         deviceNames2.add(ma2)
                 }
-                else {
-                    currentLineNum = mce.getLineNumber()
-                    String type
-                    String name
-                    args.each { arg ->
-                        if (arg instanceof ConstantExpression) {
-                            String s = arg.getText()
-                            if(arg.getLineNumber() == currentLineNum) {
-                                if(s.equals("text") || s.equals("enum") || s.equals("bool") || s.equals("boolean") || s.equals("decimal") || s.equals("email") || s.equals("number") || s.equals("password") || s.equals("time") || s.equals("mode"))
-                                    type = s
-                                else if(s.equals("phone")) {
-                                    type = s
-                                    name = s
-                                }
-                                else {
-                                    name = s
-                                }
-                            }
-                        }
-                        if (arg instanceof MapExpression) {
-                            //println("Map: " + arg.getText())
-                            if(arg.getLineNumber() == currentLineNum) {
-
-                            }
-                        }
-                    }
-                    inputVariableNames.add(["name": name, "type": type])
-                    //println(inputVariableNames)
-                }
             }
 
             // if the smart app has schedule methods like schedule, runEveryXMinutes, ... etc, store the method names in scheduleMethodNames (HashSet<String>)
@@ -277,7 +232,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 else if(temp2.size() == 3)
                     temp3 = temp2[1].tokenize(' ')
                 String handler = temp3[0]
-                scheduleMethodNames.add(handler)
+                //scheduleMethodNames.add(temp2[temp2.size()-1])
                 scheduleTimeandMethod.add(["time": time, "method": handler])
                 //println(scheduleTimeandMethod)
             }
@@ -291,27 +246,6 @@ class SmartAppMonitor extends CompilationCustomizer{
             /*if(methText != null && methText.contains("runEvery")) {
                 println "runEvery"
             }*/
-            if(methText.equals("runIn")) {
-                // example: runIn(findFalseAlarmThreshold() * 60, "takeAction", [overwrite: false])
-                String temp = mce.getArguments().getAt("text").toString()
-                List<String> temp2 = temp.tokenize(',')
-                String time = temp2[0].substring(1)
-                List<String> temp3 = temp2[1].tokenize(' )');
-                String handler = temp3[0]
-                scheduleMethodNames.add(handler)
-                scheduleTimeandMethod.add(["time": time, "method": handler])
-                //println(mce.getArguments().getAt("text").toString())
-            }
-            if(methText != null && methText.contains("runEvery")) {
-                //println(mce.getArguments().getAt("text").toString())
-                List<String> temp = methText.tokenize('runEveryMitsHo')
-                String time = temp[0]
-                String temp2 = mce.getArguments().getAt("text").toString()
-                List<String> temp3 = temp2.tokenize('()')
-                String handler = temp3[0]
-                scheduleMethodNames.add(handler)
-                scheduleTimeandMethod.add(["time": time, "method": handler])
-            }
             if(methText.equals("runOnce")) {
                 String temp = mce.getArguments().getAt("text").toString()
                 List<String> temp2 = temp.tokenize(',')
@@ -322,7 +256,6 @@ class SmartAppMonitor extends CompilationCustomizer{
                 else if(temp2.size() == 3)
                     temp3 = temp2[1].tokenize(' ')
                 String handler = temp3[0]
-                scheduleMethodNames.add(handler)
                 scheduleTimeandMethod.add(["time": time, "method": handler])
 
             }
@@ -888,16 +821,11 @@ class SmartAppMonitor extends CompilationCustomizer{
         scheduleMethodNames = new HashSet<String>()
         scheduleTimeandMethod = new HashSet<Map>()
 
-        inputVariableNames = new HashSet<Map>()
-        methodParameterNames = new HashSet<Map>()
-
         skipMethod = true
         inIfStat = false
         inHandler = false
 
         preferenceStartLine = 0
-
-        currentLineNum = 0
 
         isPage = false
     }
