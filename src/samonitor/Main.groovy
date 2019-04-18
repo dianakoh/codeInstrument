@@ -19,7 +19,7 @@ class Main {
         new File(sourceCodeDir).eachFile { f ->
             try {
                 sam.createOutputFile("${f.getName()}", f.text)
-                //println(f.getName())
+                println(f.getName())
                 sam.resetVariables()
                 gshell.evaluate(f)
             } catch (MissingMethodException mme) {
