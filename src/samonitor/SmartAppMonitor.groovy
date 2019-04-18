@@ -1,6 +1,5 @@
 package samonitor
 
-import org.codehaus.groovy.ast.expr.BinaryExpression
 import org.codehaus.groovy.ast.expr.BooleanExpression
 import org.codehaus.groovy.ast.ClassCodeVisitorSupport
 import org.codehaus.groovy.ast.ClassNode
@@ -50,8 +49,6 @@ class SmartAppMonitor extends CompilationCustomizer{
     Set<Map> inputVariableNames
     Set<Map> methodParameterNames
 
-    Set<String> inputType
-
     boolean skipMethod
     boolean inIfStat
     boolean inHandler
@@ -61,6 +58,7 @@ class SmartAppMonitor extends CompilationCustomizer{
 
     int currentLineNum
 
+    List<String> options
 
     public SmartAppMonitor()
     {
@@ -98,7 +96,46 @@ class SmartAppMonitor extends CompilationCustomizer{
 
         currentLineNum = 0;
 
-        inputType = ["text", "enum", "bool", "boolean", "decimal", "email", "number", "password", "phone", "time"]
+    }
+
+    public SmartAppMonitor(def option)
+    {
+        super(CompilePhase.SEMANTIC_ANALYSIS)
+        numberOfLineAdded = 0
+        closureDeviceNames = new ArrayList<Map>()
+
+        deviceNames = new HashSet<String>()
+        inputDeviceNames = new HashSet<String>()
+        outputDeviceNames = new HashSet<String>()
+        eventNames = new HashSet<String>()
+        handlerMethodNames = new HashSet<String>()
+        insertCodeMap = new ArrayList<Map>()
+        deviceNames2 = new HashSet<Map>()
+
+        device_handlerPair = new HashSet<Map>()
+        method_returnPair = new HashSet<Map>()
+
+        actionSet = new HashSet<String>()
+        ternaryLineNumber = new HashSet<Map>()
+
+        pageNames = new ArrayList<String>()
+        scheduleMethodNames = new HashSet<String>()
+        scheduleTimeandMethod = new HashSet<Map>()
+
+        inputVariableNames = new HashSet<Map>()
+        methodParameterNames = new HashSet<Map>()
+
+        skipMethod = true
+        inIfStat = false
+        inHandler = false
+        isTernary = false
+        preferenceStartLine = 0
+        isPage = false
+
+        currentLineNum = 0;
+
+        options = option
+        //println(options[0].toString())
 
     }
     @Override
@@ -112,7 +149,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         for(Map m : insertCodeMap) {
             codeInsert(m.get("code"), m.get("lineNumber"), m.get("addedLine"), m.get("exception"))
         }
-        //println of.getText()
+        println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
 
@@ -146,7 +183,13 @@ class SmartAppMonitor extends CompilationCustomizer{
         @Override
         void visitMethodCallExpression(MethodCallExpression mce) {
             def methText = mce.getMethodAsString()
+            /*if(!methText.equals("runScript") && !methText.equals("definition") && !methText.equals("preferences") && !methText.equals("page") && !methText.equals("dynamicPage")) {
+                if(!methText.equals("section") && !methText.equals("input")) {
+                    if (!methText.equals("mappings") && !methText.equals("collect") && !methText.equals("")) {
 
+                    }
+                }
+            }*/
            /*if(methText.equals("definition")) {
                 mce.getArguments().each { arg ->
                     arg.getAt("mapEntryExpressions").each { mee ->
@@ -243,7 +286,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                         if (arg instanceof ConstantExpression) {
                             String s = arg.getText()
                             if(arg.getLineNumber() == currentLineNum) {
-                                if(s.equals("text") || s.equals("enum") || s.equals("bool") || s.equals("boolean") || s.equals("decimal") || s.equals("email") || s.equals("number") || s.equals("password") || s.equals("time") || s.equals("mode"))
+                                if(s.equals("text") || s.equals("enum") || s.equals("bool") || s.equals("boolean") || s.equals("decimal") || s.equals("email") || s.equals("number") || s.equals("password") || s.equals("time") || s.equals("mode") || s.equals("contact"))
                                     type = s
                                 else if(s.equals("phone")) {
                                     type = s
@@ -254,10 +297,15 @@ class SmartAppMonitor extends CompilationCustomizer{
                                 }
                             }
                         }
-                        if (arg instanceof MapExpression) {
+                        else if (arg instanceof MapExpression) {
                             //println("Map: " + arg.getText())
-                            if(arg.getLineNumber() == currentLineNum) {
-
+                            arg.getMapEntryExpressions().each { mee ->
+                                if (mee.getKeyExpression().getText().equals("name")) {
+                                    name = mee.getValueExpression().getText()
+                                }
+                                if(mee.getKeyExpression().getText().equals("type")) {
+                                    type = mee.getValueExpression().getText()
+                                }
                             }
                         }
                     }
@@ -299,7 +347,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 List<String> temp3 = temp2[1].tokenize(' )');
                 String handler = temp3[0]
                 scheduleMethodNames.add(handler)
-                scheduleTimeandMethod.add(["time": time, "method": handler])
+                scheduleTimeandMethod.add(["time": "\"After " + time + "\"", "method": handler])
                 //println(mce.getArguments().getAt("text").toString())
             }
             if(methText != null && methText.contains("runEvery")) {
@@ -310,7 +358,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 List<String> temp3 = temp2.tokenize('()')
                 String handler = temp3[0]
                 scheduleMethodNames.add(handler)
-                scheduleTimeandMethod.add(["time": time, "method": handler])
+                scheduleTimeandMethod.add(["time": "\"runEvery" + time + "\"", "method": handler])
             }
             if(methText.equals("runOnce")) {
                 String temp = mce.getArguments().getAt("text").toString()
@@ -424,11 +472,13 @@ class SmartAppMonitor extends CompilationCustomizer{
                             } else {
                                 code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\")"
                             }
-                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                            if(options[0].toString().equals("onlyEvent") || options[0].toString().equals("all"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
 
                             code = "\t//Inserted Code\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\")"
-                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                            if(options[0].toString().equals("onlyHandler") || options[0].toString().equals("all"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
 
                             break
                         }
@@ -449,25 +499,46 @@ class SmartAppMonitor extends CompilationCustomizer{
                     if(meth.getLineNumber() == meth.getLastLineNumber()) { // if the method has only one line
                         String code = "\t//Inserted Code\n"
                         if(sche != "") {
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\")"
+                            if(options[0].toString().equals("onlyEvent"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
+                            code = "\t//Inserted Code\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"handlerMethod\")"
+                            if(options[0].toString().equals("onlyHandler"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
+                            code = "\t//Inserted Code\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\")\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"handlerMethod\")"
-                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 2]) //exception: 2
+                            if(options[0].toString().equals("all"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 2]) //exception: 2
                         }
                         else {
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
-                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
+                            if(options[0].toString().equals("all"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
                         }
                     }
                     else {
                         String code = "\t//Inserted Code\n"
                         if(sche != "") {
                             code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\")\n"
+                            if(options[0].toString().equals("onlyEvent"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                            code = "\t//Inserted Code\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"handlerMethod\")"
-                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 0])
+                            if(options[0].toString().equals("onlyHandler"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                            code = "\t//Inserted Code\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\")\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"" + sche + "\", \"this\", \"handlerMethod\")"
+                            if(options[0].toString().equals("all"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 0])
+
                         }
                         else {
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
-                            insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                            if(options[0].toString().equals("all"))
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
                         }
                     }
                 }
@@ -482,14 +553,20 @@ class SmartAppMonitor extends CompilationCustomizer{
             else if(methName.equals("installed")) {
                 String code = "\t//Inserted Code\n"
                 code += "\tsmartAppMonitor.setData(app.getName(), \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
-                if(meth.getFirstStatement() != null)
-                    insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
-                else
-                    if(meth.getLineNumber() == meth.getLastLineNumber()) // if there is not any content in installed method
-                        insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber(), "addedLine": 2, "exception": 2])
-                    else {
-                        insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber()+1, "addedLine": 2, "exception": 0])
+                if(meth.getFirstStatement() != null) {
+                    if(options[0].toString().equals("all"))
+                        insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                }
+                else {
+                    if (meth.getLineNumber() == meth.getLastLineNumber()) { // if there is not any content in installed method
+                        if(options[0].toString().equals("all"))
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber(), "addedLine": 2, "exception": 2])
                     }
+                    else {
+                        if(options[0].toString().equals("all"))
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber() + 1, "addedLine": 2, "exception": 0])
+                    }
+                }
 
             }
             super.visitMethod(meth)
@@ -613,7 +690,8 @@ class SmartAppMonitor extends CompilationCustomizer{
                                     thereisaction = true;
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
-                                    insertCodeMap.add(["code": code, "lineNumber": recver.getLineNumber() + 1, "addedLine": 2, "exception" :0])
+                                    if(options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
+                                        insertCodeMap.add(["code": code, "lineNumber": recver.getLineNumber() + 1, "addedLine": 2, "exception" :0])
                                 }
                             }
                         }
@@ -629,7 +707,8 @@ class SmartAppMonitor extends CompilationCustomizer{
                                             outputDeviceNames.add(m.get("name"))
                                             String code = "/*Inserted Code*/ "
                                             code += "smartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
-                                            insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 0, "exception": 3])
+                                            if(options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
+                                                insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 0, "exception": 3])
                                             break
                                         }
                                     }
@@ -637,7 +716,8 @@ class SmartAppMonitor extends CompilationCustomizer{
                                     outputDeviceNames.add(m.get("name"))
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\")"
-                                    insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2, "exception": 0])
+                                    if(options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
+                                        insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2, "exception": 0])
                                 }
                             }
                             for (Map m : closureDeviceNames) {
@@ -645,7 +725,8 @@ class SmartAppMonitor extends CompilationCustomizer{
                                     thereisaction = true
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("realDevice") + ".getName()}\", \"action\")"
-                                    insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2, "exception": 0])
+                                    if(options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
+                                        insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2, "exception": 0])
                                 }
                             }
 
@@ -654,14 +735,16 @@ class SmartAppMonitor extends CompilationCustomizer{
                             thereisaction = true
                             String code = "\t//Inserted Code\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"send\", \"this\", \"action\")"
-                            insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
+                            if(options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
+                                insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
 
                         }
                         if (methText.equals("setLocationMode")) {
                             thereisaction = true
                             String code = "\t//Inserted Code\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"setLocationMode\", \"this\", \"action\")"
-                            insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
+                            if(options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
+                                insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
                         }
 
                         if(thereisaction == false) {
@@ -669,7 +752,8 @@ class SmartAppMonitor extends CompilationCustomizer{
                                 if(s.equals(methText)) { // 만약 action method 가 존재하는데 action으로 인식하지 못하는 경우
                                     String code = "\t//Inserted Code\n"
                                     code += "\tsmartAppMonitor.setData(app.getName(), \"" + methText + "\", \"Capability\", \"Devices\", \"action\")"
-                                    insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
+                                    if(options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
+                                        insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber(), "addedLine": 2, "exception": 0])
                                 }
                             }
                         }
