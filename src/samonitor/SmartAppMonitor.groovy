@@ -593,7 +593,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 else { //if the smartapp's preference doesn't have any page structure
                     String code = "\t//Inserted Code\n"
                     code += "\tsection(\"Select SmartAppMonitor\") {\n" + "\t\tinput \"smartAppMonitor\", \"capability.execute\"\n" + "\t}\n"
-                    code += "\t\tsection(\"Enter an id for monitoring\") {\n" + "\t\t\tinput \"monitoringID\", \"text\"\n" + "\t\t}"
+                    code += "\t\tsection(\"Enter an id for monitoring\") {\n" + "\t\t\tinput \"monitoringID\", \"text\", required: true\n" + "\t\t}"
                     insertCodeMap.add(["code": code, "lineNumber": mce.getLineNumber()+1, "addedLine": 7, "exception": 0])
                 }
 
