@@ -511,15 +511,15 @@ class SmartAppMonitor extends CompilationCustomizer{
                             String code = "\t//Inserted Code\n"
                             if (deviceN.toString().equals("app") || deviceN.toString().equals("location")) {
                                 if(index != null) {
-                                    code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"\${" + param + ".value}\", \"" + deviceN + "\", \"event\", \"\${" + param + ".id}\", \"" + index + "\")"
+                                    code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"\${" + param + ".value}\", \"" + deviceN + "\", \"event\", \"\${" + param + ".id}\", \"\${state.actionId}\")"
                                 }else {
-                                    code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"\${" + param + ".value}\", \"" + deviceN + "\", \"event\", \"\${" + param + ".id}\", \"" + 0 + "\")"
+                                    code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"\${" + param + ".value}\", \"" + deviceN + "\", \"event\", \"\${" + param + ".id}\", \"\${state.actionId}\")"
                                 }
                             } else {
                                 if(index != null) {
-                                    code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\", \"\${" + param + ".id}\", \"" + index + "\")"
+                                    code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\", \"\${" + param + ".id}\", \"\${state.actionId}\")"
                                 }else {
-                                    code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\", \"\${" + param + ".id}\", \"" + 0 + "\")"
+                                    code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\", \"\${" + param + ".id}\", \"\${state.actionId}\")"
                                 }
                             }
                             if(options[0].toString().equals("onlyEvent") || options[0].toString().equals("all"))
@@ -527,13 +527,15 @@ class SmartAppMonitor extends CompilationCustomizer{
 
                             code = "\t//Inserted Code\n"
                             if(index != null) {
-                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\", \"\${" + param + ".id}\", \"" + index + "\")"
+                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\", \"\${" + param + ".id}\", \"\${state.actionId}\")\n"
+                                code += "\tstate.actionId = state.actionId + 1"
                             } else {
-                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\", \"\${" + param + ".id}\", \"" + 0 + "\")"
+                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\", \"\${" + param + ".id}\", \"\${state.actionId}\")\n"
+                                code += "\tstate.actionId = state.actionId + 1"
                             }
                             //code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\")"
                             if(options[0].toString().equals("onlyHandler") || options[0].toString().equals("all"))
-                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                                insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 0])
 
                             break
                         }
@@ -607,19 +609,20 @@ class SmartAppMonitor extends CompilationCustomizer{
             // when the smartapp - install
             else if(methName.equals("installed")) {
                 String code = "\t//Inserted Code\n"
-                code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")"
+                code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"methodCall\", \"this\", \"methodCall\")\n"
+                code += "\tstate.actionId = 0"
                 if(meth.getFirstStatement() != null) {
                     if(options[0].toString().equals("all"))
-                        insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
+                        insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 0])
                 }
                 else {
                     if (meth.getLineNumber() == meth.getLastLineNumber()) { // if there is not any content in installed method
                         if(options[0].toString().equals("all"))
-                            insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber(), "addedLine": 2, "exception": 2])
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber(), "addedLine": 3, "exception": 2])
                     }
                     else {
                         if(options[0].toString().equals("all"))
-                            insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber() + 1, "addedLine": 2, "exception": 0])
+                            insertCodeMap.add(["code": code, "lineNumber": meth.getLineNumber() + 1, "addedLine": 3, "exception": 0])
                     }
                 }
 
@@ -769,14 +772,14 @@ class SmartAppMonitor extends CompilationCustomizer{
                                             String code = "/*Inserted Code*/ "
                                             if (index != null) {
                                                 if(inHandler == true)
-                                                    code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"" + index + "\", \"\${evt.id}\")"
+                                                    code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"\${state.actionId}\", \"\${evt.id}\")"
                                                 else
-                                                    code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"" + index + "\", \"null\")"
+                                                    code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"\${state.actionId}\", \"null\")"
                                             } else {
                                                 if(inHandler == true)
-                                                    code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"" + 0 + "\", \"\${evt.id}\")"
+                                                    code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"\${state.actionId}\", \"\${evt.id}\")"
                                                 else
-                                                    code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"" + 0 + "\", \"null\")"
+                                                    code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"\${state.actionId}\", \"null\")"
                                             }
                                             if (options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
                                                 insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 0, "exception": 3])
@@ -788,14 +791,14 @@ class SmartAppMonitor extends CompilationCustomizer{
                                     String code = "\t//Inserted Code\n"
                                     if (index != null) {
                                         if(inHandler == true)
-                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"" + index + "\", \"\${evt.id}\")"
+                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"\${state.actionId}\", \"\${evt.id}\")"
                                         else
-                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"" + index + "\", \"null\")"
+                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"\${state.actionId}\", \"null\")"
                                     } else {
                                         if(inHandler == true)
-                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"" + 0 + "\", \"\${evt.id}\")"
+                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"\${state.actionId}\", \"\${evt.id}\")"
                                         else
-                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"" + 0 + "\", \"null\")"
+                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"\${state.actionId}\", \"null\")"
                                     }
                                 if(options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
                                         insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2, "exception": 0])
@@ -807,14 +810,14 @@ class SmartAppMonitor extends CompilationCustomizer{
                                     String code = "\t//Inserted Code\n"
                                     if (index != null) {
                                         if(inHandler == true)
-                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"" + index + "\", \"\${evt.id}\")"
+                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"\${state.actionId}\", \"\${evt.id}\")"
                                         else
-                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"" + index + "\", \"null\")"
+                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"\${state.actionId}\", \"null\")"
                                     } else {
                                         if(inHandler == true)
-                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"" + 0 + "\", \"\${evt.id}\")"
+                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\", \"\${state.actionId}\", \"\${evt.id}\")"
                                         else
-                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"" + 0 + "\", \"null\")"
+                                            code += "smartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methText + "\", \"" + m.get("capability") + "\", \"\${" + m.get("name") + ".getName()}\", \"action\",  \"\${state.actionId}\", \"null\")"
                                     }
                                     if(options[0].toString().equals("onlyAction") || options[0].toString().equals("all"))
                                         insertCodeMap.add(["code": code, "lineNumber": recvex.getLineNumber(), "addedLine": 2, "exception": 0])
