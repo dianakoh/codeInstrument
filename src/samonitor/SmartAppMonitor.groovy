@@ -517,7 +517,8 @@ class SmartAppMonitor extends CompilationCustomizer{
                             //    }
                             } else {
                             //    if(index != null) {
-                                    code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\", \"\${" + param + ".id}\", \"\${" + param + ".getDevice().events(max:1).get(0).id" + "}\")"
+                                    //code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\", \"\${" + param + ".id}\", \"\${" + param + ".getDevice().events(max:1).get(0).id" + "}\")"
+                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\", \"\${" + param + ".id}\", \"\${" + param + ".id}\")"
                             //    }else {
                              //       code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + param + ".value}\", \"" + deviceC + "\", \"\${" + param + ".getDevice()}\", \"event\", \"\${" + param + ".id}\", \"\${" + param + ".getDevice().events(max:1)[0].id" + "}\")"
                              //   }
@@ -527,7 +528,8 @@ class SmartAppMonitor extends CompilationCustomizer{
 
                             code = "\t//Inserted Code\n"
                          //   if(index != null) {
-                                code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\", \"\${" + param + ".id}\", \"\${" + param + ".getDevice().events(max:1).get(0).id" + "}\")"
+                                //code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\", \"\${" + param + ".id}\", \"\${" + param + ".getDevice().events(max:1).get(0).id" + "}\")"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\", \"\${" + param + ".id}\", \"\${" + param + ".id}\")"
                                 //code += "\tstate.actionId = state.actionId + 1"
                          //   } else {
                           //      code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"handlerMethod\", \"this\", \"handlerMethod\", \"\${" + param + ".id}\", \"\${" + param + ".getDevice().events(max:1)[0].id" + "}\")"
