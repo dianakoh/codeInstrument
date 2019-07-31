@@ -12,15 +12,17 @@ class Main {
 
 
         CompilerConfiguration cc = new CompilerConfiguration(CompilerConfiguration.DEFAULT)
-        SmartAppMonitor sam = new SmartAppMonitor(args)
-        cc.addCompilationCustomizers(sam)
+        //SmartAppMonitor sam = new SmartAppMonitor(args)
+        SmartAppAnalyzer sas = new SmartAppAnalyzer()
+        //cc.addCompilationCustomizers(sam)
+        cc.addCompilationCustomizers(sas)
         GroovyShell gshell = new GroovyShell(cc)
-        sam.setActionSet()
+        //sam.setActionSet()
         new File(sourceCodeDir).eachFile { f ->
             try {
-                sam.createOutputFile("${f.getName()}", f.text)
+                //sam.createOutputFile("${f.getName()}", f.text)
                 //println(f.getName())
-                sam.resetVariables()
+                //sam.resetVariables()
                 gshell.evaluate(f)
             } catch (MissingMethodException mme) {
                 def missingMethod = mme.toString()
