@@ -1,12 +1,11 @@
 package samonitor
 
-import javafx.beans.binding.MapExpression
-import jdk.internal.org.objectweb.asm.tree.analysis.Analyzer
 import org.codehaus.groovy.ast.ClassCodeVisitorSupport
 import org.codehaus.groovy.ast.ClassNode
 import org.codehaus.groovy.ast.MethodNode
 import org.codehaus.groovy.ast.expr.ConstantExpression
 import org.codehaus.groovy.ast.expr.MethodCallExpression
+import org.codehaus.groovy.ast.expr.MapExpression
 import org.codehaus.groovy.ast.expr.VariableExpression
 import org.codehaus.groovy.classgen.GeneratorContext
 import org.codehaus.groovy.control.CompilePhase
@@ -20,9 +19,11 @@ import javax.lang.model.element.VariableElement
 class SmartAppAnalyzer extends CompilationCustomizer {
 
     Set<Map> options
+    Set<String> eventHandler
     SmartAppAnalyzer(){
         super(CompilePhase.SEMANTIC_ANALYSIS)
         options = new HashSet<Map>()
+        eventHandler = new HashSet<String>()
     }
     @Override
     void call(SourceUnit source, GeneratorContext context, ClassNode classNode){
@@ -35,7 +36,17 @@ class SmartAppAnalyzer extends CompilationCustomizer {
 
         @Override
         void visitMethod(MethodNode meth) {
+            def methodName = meth.getName()
+            if(methodName.equals("main") || methodName.equals("run") || methodName.equals("installed") || methodName.equals("updated") || methodName.equals("initialize")) {
 
+            }
+            else {
+                def notHandler = true
+                for(String s : eventHandler) {
+                    if(meth.equals(s)) notHandler = false
+                }
+                if(notHandler == true) options += ["type": "method", "name": meth.getName()]
+            }
             super.visitMethod(meth)
         }
         @Override
@@ -46,12 +57,12 @@ class SmartAppAnalyzer extends CompilationCustomizer {
                 args.each { arg ->
                     if (arg instanceof ConstantExpression) {
                         def input = arg.getText()
-                        if(!input.contains(".")) options += ["type": "input", "name": input]
+                        //if(!input.contains(".")) options += ["type": "input", "name": input]
                     }
                     if (arg instanceof MapExpression) {
                         arg.getMapEntryExpressions().each { m ->
                             if (m.getKeyExpression().getText().equals("name")) {
-                                println m.getValueExpression().getText()
+                                //println m.getValueExpression().getText()
                             }
                         }
                     }
@@ -59,9 +70,14 @@ class SmartAppAnalyzer extends CompilationCustomizer {
             }
             if(meth.equals("subscribe")) {
                 def args = mce.getArguments()
+                if(args[1] instanceof ConstantExpression) {
+                    def arg1 = (ConstantExpression) args[1]
+                    options += ["type": "event", "name": arg1.getText()]
+                }
                 if(args[2] instanceof VariableExpression) {
                     def arg2 = (VariableExpression) args[2]
-                    options += ["type": "eventHandler", "name": arg2.getName()]
+                    //options += ["type": "eventHandler", "name": arg2.getName()]
+                    eventHandler.add(arg2.getName())
                 }
             }
 
@@ -73,7 +89,7 @@ class SmartAppAnalyzer extends CompilationCustomizer {
 
                 }
                 else {
-                    println mce.getReceiver() + "." + meth
+                    options += ["type": "action", "name": mce.getReceiver().getText() + "." + meth]
                 }
             }
 
@@ -89,6 +105,11 @@ class SmartAppAnalyzer extends CompilationCustomizer {
         for(Map m : options) {
             println m;
         }
+    }
+
+    def resetVariables() {
+        options = new HashSet<Map>()
+        eventHandler = new HashSet<String>()
     }
 
 }
