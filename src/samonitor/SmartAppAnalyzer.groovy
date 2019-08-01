@@ -43,7 +43,7 @@ class SmartAppAnalyzer extends CompilationCustomizer {
             else {
                 def notHandler = true
                 for(String s : eventHandler) {
-                    if(meth.equals(s)) notHandler = false
+                    if(methodName.equals(s)) notHandler = false
                 }
                 if(notHandler == true) options += ["type": "method", "name": meth.getName()]
             }
@@ -70,13 +70,16 @@ class SmartAppAnalyzer extends CompilationCustomizer {
             }
             if(meth.equals("subscribe")) {
                 def args = mce.getArguments()
+                def arg1
+                def arg2
                 if(args[1] instanceof ConstantExpression) {
-                    def arg1 = (ConstantExpression) args[1]
-                    options += ["type": "event", "name": arg1.getText()]
+                    arg1 = (ConstantExpression) args[1]
+                    //options += ["type": "event", "name": arg1.getText()]
                 }
                 if(args[2] instanceof VariableExpression) {
-                    def arg2 = (VariableExpression) args[2]
+                    arg2 = (VariableExpression) args[2]
                     //options += ["type": "eventHandler", "name": arg2.getName()]
+                    options += ["type": "event", "name": arg1.getText() + "-" + arg2.getName()]
                     eventHandler.add(arg2.getName())
                 }
             }
