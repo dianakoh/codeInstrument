@@ -88,11 +88,21 @@ class SmartAppAnalyzer extends CompilationCustomizer {
                 if(meth.equals("runScript") || meth.equals("definition") || meth.equals("preferences") || meth.equals("section") || meth.equals("input") || meth.equals("initialize") || meth.equals("unsubscribe")) {
 
                 }
-                else if(meth.equals("debug") || meth.equals("currentValue")) {
+                else if(meth.equals("currentValue") || meth.equals("currentState")) {
+
+                }
+                else if(meth.equals("size") || meth.equals("findAll") || meth.equals("each")) {
 
                 }
                 else {
-                    options += ["type": "action", "name": mce.getReceiver().getText() + "." + meth]
+                    String receiver = mce.getReceiver().getText()
+                    if(receiver.equals("this") || receiver.equals("log")) {
+                        if(meth.equals("sendPush") || meth.equals("sendSms") || meth.equals("sendNotification")) {
+                            options += ["type": "action", "name": meth]
+                        }
+                    }
+                    else
+                        options += ["type": "action", "name": mce.getReceiver().getText() + "." + meth]
                 }
             }
 
