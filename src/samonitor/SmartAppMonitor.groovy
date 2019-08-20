@@ -756,7 +756,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                                 //code += "\"" + s + "\", " //], required: false)\n"
                         //else code += "\"" + s + "\""
                         //count++
-                        optionList.add(s)
+                        optionList.add("event:"+s)
                     }
                     //count = 0
                     optionList.add("actions")
@@ -765,7 +765,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                             //code += "\"" + s + "\", " //], required: false)\n"
                         //else code += "\"" + s + "\""
                         //count++
-                        optionList.add(s)
+                        optionList.add("action:"+s)
                     }
                     //count = 0
                     optionList.add("methods")
@@ -774,7 +774,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                             //code += "\"" + s + "\", " //], required: false)\n"
                         //else code += "\"" + s + "\""
                         //count++
-                        optionList.add(s)
+                        optionList.add("method:"+s)
                     }
                     for(String s: optionList) {
                         if((count < optionList.size()-1) && optionList.size() > 1) {
