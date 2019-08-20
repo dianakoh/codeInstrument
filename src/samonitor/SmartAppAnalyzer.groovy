@@ -97,7 +97,7 @@ class SmartAppAnalyzer extends CompilationCustomizer {
                 else {
                     String receiver = mce.getReceiver().getText()
                     if(receiver.equals("this") || receiver.equals("log")) {
-                        if(meth.equals("sendPush") || meth.equals("sendSms") || meth.equals("sendNotification")) {
+                        if(meth.equals("sendPush") || meth.equals("sendSms") || meth.equals("sendNotification") || meth.equals("setLocationMode")) {
                             options += ["type": "action", "name": meth]
                         }
                     }
