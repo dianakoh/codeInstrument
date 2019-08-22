@@ -227,7 +227,12 @@ class SmartAppMonitor extends CompilationCustomizer{
                     for(String s : handlerMethodNames) {
                         if(methName.equals(s)) notHandler = false
                     }
-                    if(notHandler == true) methodNames.add(methName)
+                    if(notHandler == true) {
+                        methodNames.add(methName)
+                    }
+                }
+                else {
+                    methodNames.add(methName)
                 }
             }
             else {
@@ -488,7 +493,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 List<String> temp3 = temp2[1].tokenize(' )');
                 String handler = temp3[0]
                 scheduleMethodNames.add(handler)
-                scheduleTimeandMethod.add(["time": "\"After " + time + "\"", "method": handler])
+                scheduleTimeandMethod.add(["time": "After " + time, "method": handler])
                 //println(mce.getArguments().getAt("text").toString())
             }
             if(methText != null && methText.contains("runEvery")) {
@@ -499,7 +504,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                 List<String> temp3 = temp2.tokenize('()')
                 String handler = temp3[0]
                 scheduleMethodNames.add(handler)
-                scheduleTimeandMethod.add(["time": "\"runEvery" + time + "\"", "method": handler])
+                scheduleTimeandMethod.add(["time": "runEvery" + time, "method": handler])
             }
             if(methText.equals("runOnce")) {
                 String temp = mce.getArguments().getAt("text").toString()
@@ -698,15 +703,17 @@ class SmartAppMonitor extends CompilationCustomizer{
                             sche = "scheduleMethod"
                         }
                         for(Map m : scheduleTimeandMethod) {
-                            if(m.get("method").toString().equals(methName))
+                            if(m.get("method").toString().equals(methName)) {
                                 scheduleTime = m.get("time").toString()
+                            }
+
                         }
                     }
                     if(meth.getLineNumber() == meth.getLastLineNumber()) { // if the method has only one line
                         // code = "\t//Inserted Code\n"
                         String code = ""
                         if(sche != "") {
-                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\")"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + scheduleTime + "\", \"time\", \"this\", \"event\")"
                             if(options[0].toString().equals("onlyEvent"))
                                 insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
                             //code = "\t//Inserted Code\n"
@@ -716,7 +723,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                                 insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 2]) //exception: 2
                             //code = "\t//Inserted Code\n"
                             code = ""
-                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\")\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + scheduleTime + "\", \"time\", \"this\", \"event\")\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"" + sche + "\", \"this\", \"handlerMethod\")"
                             if(options[0].toString().equals("all")) {
                                 //insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 2])
@@ -735,7 +742,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                         //String code = "\t//Inserted Code\n"
                         String code = ""
                         if(sche != "") {
-                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\", \"null\", \"null\", \"\${userOptions}\")\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + scheduleTime + "\", \"time\", \"this\", \"event\", \"null\", \"null\", \"\${userOptions}\")\n"
                             //if(options[0].toString().equals("onlyEvent"))
                                 //insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 2, "exception": 0])
                             for(String me : optionMethodNames) {
@@ -757,7 +764,7 @@ class SmartAppMonitor extends CompilationCustomizer{
                             }
                             //code = "\t//Inserted Code\n"
                             code = ""
-                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"\${" + scheduleTime + "}\", \"time\", \"this\", \"event\", \"null\", \"null\", \"\${userOptions}\")\n"
+                            code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + scheduleTime + "\", \"time\", \"this\", \"event\", \"null\", \"null\", \"\${userOptions}\")\n"
                             code += "\tsmartAppMonitor.setData(app.getName(), \"\${monitoringID}\", \"" + methName + "\", \"" + sche + "\", \"this\", \"handlerMethod\", \"null\", \"null\", \"\${userOptions}\")"
                             //if(options[0].toString().equals("all"))
                                 //insertCodeMap.add(["code": code, "lineNumber": meth.getFirstStatement().getLineNumber(), "addedLine": 3, "exception": 0])
