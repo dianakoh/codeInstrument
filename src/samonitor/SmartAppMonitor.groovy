@@ -169,7 +169,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         options = option
 
         //options = option
-        println(options[0].toString())
+        //println(options[0].toString())
 
     }
     @Override
@@ -199,7 +199,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         smartAppInfo += "InputVariables: " + inputVariableNames.toString() + "\n"
         smartAppInfo += "HandlerMethod: " + handlerMethodNames.toString() + "\n"
         temp.append(smartAppInfo)*/
-        //println of.getText()
+        println of.getText()
     }
     class MethodDecVisitor extends ClassCodeVisitorSupport {
 
