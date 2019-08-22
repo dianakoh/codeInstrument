@@ -169,7 +169,7 @@ class SmartAppMonitor extends CompilationCustomizer{
         options = option
 
         //options = option
-        //println(options[0].toString())
+        println(options[0].toString())
 
     }
     @Override

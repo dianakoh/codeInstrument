@@ -28,8 +28,10 @@ class Main {
                 gshell.evaluate(f)
             } catch (MissingMethodException mme) {
                 def missingMethod = mme.toString()
-                if (!missingMethod.contains("definition"))
-                    println "missing method: " + missingMethod
+                if (!missingMethod.contains("definition")) {
+                    def message = "missing method: " + missingMethod
+                    //println "missing method: " + missingMethod
+                }
             } catch(MultipleCompilationErrorsException mcee) {
                 mcee.printStackTrace()
             }
