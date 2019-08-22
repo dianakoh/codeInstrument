@@ -94,6 +94,12 @@ class SmartAppAnalyzer extends CompilationCustomizer {
                 else if(meth.equals("size") || meth.equals("findAll") || meth.equals("each")) {
 
                 }
+                else if(meth.equals("find") || meth.equals("split") || meth.equals("contains") || meth.equals("join") || meth.equals("parseText") || meth.equals("format")) {
+
+                }
+                else if(meth.equals("SimpleDateFormat") || meth.equals("setTimeZone") || meth.equals("getTimeZone")) {
+
+                }
                 else {
                     String receiver = mce.getReceiver().getText()
                     if(receiver.equals("this") || receiver.equals("log")) {
