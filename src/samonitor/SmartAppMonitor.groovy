@@ -1357,8 +1357,8 @@ class SmartAppMonitor extends CompilationCustomizer{
 
     // store action Set (get the action information from the database)
     void setActionSet() {
-        /*def sql = Sql.newInstance('jdbc:mysql://203.252.195.182:3306/api_smartAppMonitor_test?autoReconnect=true&useSSL=false',
-                'root', '1234', 'com.mysql.jdbc.Driver')
+        /*def sql = Sql.newInstance('jdbc:mysql://ip address:3306/api_smartAppMonitor_test?autoReconnect=true&useSSL=false',
+                'id', 'password', 'com.mysql.jdbc.Driver')
 
         sql.eachRow('select * from Capabilities') {
             tp ->
